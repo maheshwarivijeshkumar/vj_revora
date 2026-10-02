@@ -1,0 +1,199 @@
+/**
+ * Brand token layer — layer 3 of the token system (spec §105, §106.3, §126).
+ *
+ * All eight candidate identities from the brand board are defined here. The
+ * active one is selected by `data-brand` on <html>, set server-side from
+ * config/brand.php, so switching brands is one attribute — not a rebuild.
+ *
+ * Each brand contributes a full 50–900 ramp. The *step* chosen for each
+ * semantic role is theme-dependent and declared once at the bottom: light mode
+ * takes 600 for primary, dark mode takes 400, because a 600 that reads as
+ * confident on white reads as muddy on deep navy.
+ *
+ * This is also what §95 white-labelling will hook into: a tenant's custom
+ * colours become another block of these variables, injected at runtime.
+ *
+ * To finalise a brand: set BRAND_KEY in .env (or pick one at /brand),
+ * then copy that brand's favicons from public/brand/<key>/ into public/.
+ */
+
+/* --- Leadora — electric blue + indigo, AI spark ------------------------- */
+[data-brand='leadora'] {
+    --brand-50: #eef2ff;
+    --brand-100: #e0e7ff;
+    --brand-200: #c7d2fe;
+    --brand-300: #a5b4fc;
+    --brand-400: #818cf8;
+    --brand-500: #6366f1;
+    --brand-600: #4f46e5;
+    --brand-700: #4338ca;
+    --brand-800: #3730a3;
+    --brand-900: #312e81;
+    --brand-secondary-hex: #2563eb;
+    --brand-accent-hex: #06b6d4;
+    --brand-gradient: linear-gradient(135deg, #4f46e5, #2563eb);
+}
+
+/* --- LeadPulse — teal + blue, heartbeat --------------------------------- */
+[data-brand='leadpulse'] {
+    --brand-50: #f0fdfa;
+    --brand-100: #ccfbf1;
+    --brand-200: #99f6e4;
+    --brand-300: #5eead4;
+    --brand-400: #2dd4bf;
+    --brand-500: #14b8a6;
+    --brand-600: #0d9488;
+    --brand-700: #0f766e;
+    --brand-800: #115e59;
+    --brand-900: #134e4a;
+    --brand-secondary-hex: #14b8a6;
+    --brand-accent-hex: #2563eb;
+    --brand-gradient: linear-gradient(135deg, #14b8a6, #2563eb);
+}
+
+/* --- LeadMinds — indigo + violet, neural ------------------------------- */
+[data-brand='leadminds'] {
+    --brand-50: #f5f3ff;
+    --brand-100: #ede9fe;
+    --brand-200: #ddd6fe;
+    --brand-300: #c4b5fd;
+    --brand-400: #a78bfa;
+    --brand-500: #8b5cf6;
+    --brand-600: #7c3aed;
+    --brand-700: #6d28d9;
+    --brand-800: #5b21b6;
+    --brand-900: #4c1d95;
+    --brand-secondary-hex: #7c3aed;
+    --brand-accent-hex: #a855f7;
+    --brand-gradient: linear-gradient(135deg, #4f46e5, #7c3aed);
+}
+
+/* --- LeadFlow — blue + cyan; matches the board's Primary ramp exactly --- */
+[data-brand='leadflow'] {
+    --brand-50: #eff6ff;
+    --brand-100: #dbeafe;
+    --brand-200: #bfdbfe;
+    --brand-300: #93c5fd;
+    --brand-400: #60a5fa;
+    --brand-500: #3b82f6;
+    --brand-600: #2563eb;
+    --brand-700: #1d4ed8;
+    --brand-800: #1e40af;
+    --brand-900: #1e3a8a;
+    --brand-secondary-hex: #0ea5e9;
+    --brand-accent-hex: #10b981;
+    --brand-gradient: linear-gradient(135deg, #2563eb, #06b6d4);
+}
+
+/* --- Revora — emerald + blue, revenue growth --------------------------- */
+[data-brand='revora'] {
+    --brand-50: #ecfdf5;
+    --brand-100: #d1fae5;
+    --brand-200: #a7f3d0;
+    --brand-300: #6ee7b7;
+    --brand-400: #34d399;
+    --brand-500: #10b981;
+    --brand-600: #059669;
+    --brand-700: #047857;
+    --brand-800: #065f46;
+    --brand-900: #064e3b;
+    --brand-secondary-hex: #10b981;
+    --brand-accent-hex: #2563eb;
+    --brand-gradient: linear-gradient(135deg, #059669, #2563eb);
+}
+
+/* --- LeadForge — orange + red, transformation -------------------------- */
+[data-brand='leadforge'] {
+    --brand-50: #fff7ed;
+    --brand-100: #ffedd5;
+    --brand-200: #fed7aa;
+    --brand-300: #fdba74;
+    --brand-400: #fb923c;
+    --brand-500: #f97316;
+    --brand-600: #ea580c;
+    --brand-700: #c2410c;
+    --brand-800: #9a3412;
+    --brand-900: #7c2d12;
+    --brand-secondary-hex: #f97316;
+    --brand-accent-hex: #ef4444;
+    --brand-gradient: linear-gradient(135deg, #f97316, #ef4444);
+}
+
+/* --- LeadOrbit — violet + indigo, orbital ------------------------------ */
+[data-brand='leadorbit'] {
+    --brand-50: #faf5ff;
+    --brand-100: #f3e8ff;
+    --brand-200: #e9d5ff;
+    --brand-300: #d8b4fe;
+    --brand-400: #c084fc;
+    --brand-500: #a855f7;
+    --brand-600: #9333ea;
+    --brand-700: #6d28d9;
+    --brand-800: #6b21a8;
+    --brand-900: #581c87;
+    --brand-secondary-hex: #7c3aed;
+    --brand-accent-hex: #4f46e5;
+    --brand-gradient: linear-gradient(135deg, #7c3aed, #4f46e5);
+}
+
+/* --- LeadNest — emerald + teal, nurturing ------------------------------ */
+[data-brand='leadnest'] {
+    --brand-50: #f0fdfa;
+    --brand-100: #ccfbf1;
+    --brand-200: #99f6e4;
+    --brand-300: #5eead4;
+    --brand-400: #2dd4bf;
+    --brand-500: #14b8a6;
+    --brand-600: #0d9488;
+    --brand-700: #047857;
+    --brand-800: #065f46;
+    --brand-900: #064e3b;
+    --brand-secondary-hex: #0d9488;
+    --brand-accent-hex: #14b8a6;
+    --brand-gradient: linear-gradient(135deg, #059669, #14b8a6);
+}
+
+/**
+ * Which ramp step fills which semantic role.
+ *
+ * Declared once rather than per-brand: every brand answers "what is my 600?"
+ * and this answers "which step does a primary button use?" — so adding a
+ * ninth brand means adding a ramp, nothing else.
+ */
+:root {
+    --brand-primary: var(--brand-600);
+    --brand-secondary: var(--brand-secondary-hex);
+    --brand-accent: var(--brand-accent-hex);
+    --brand-soft: var(--brand-100);
+    --brand-on-soft: var(--brand-700);
+}
+
+.dark {
+    /* Lighter steps on deep navy: a 600 that reads confident on white goes
+     * muddy on #08111f, and soft tints must invert or they glow. */
+    --brand-primary: var(--brand-400);
+    --brand-secondary: var(--brand-secondary-hex);
+    --brand-accent: var(--brand-accent-hex);
+    --brand-soft: var(--brand-900);
+    --brand-on-soft: var(--brand-200);
+}
+
+/**
+ * Fallback so the UI is never unstyled if `data-brand` is missing — for
+ * instance on an error page rendered before the app booted.
+ */
+:root:not([data-brand]) {
+    --brand-50: #ecfdf5;
+    --brand-100: #d1fae5;
+    --brand-200: #a7f3d0;
+    --brand-300: #6ee7b7;
+    --brand-400: #34d399;
+    --brand-500: #10b981;
+    --brand-600: #059669;
+    --brand-700: #047857;
+    --brand-800: #065f46;
+    --brand-900: #064e3b;
+    --brand-secondary-hex: #10b981;
+    --brand-accent-hex: #2563eb;
+    --brand-gradient: linear-gradient(135deg, #059669, #2563eb);
+}

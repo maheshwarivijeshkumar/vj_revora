@@ -1,0 +1,86 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import './tokens.css';
+@import './brands.css';
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+
+/* Class-based dark mode: the <html> element carries `.dark`, set before first
+ * paint by the inline script in app.blade.php so the theme never flashes. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+@layer base {
+    *,
+    ::after,
+    ::before {
+        border-color: var(--border);
+    }
+
+    html {
+        -webkit-text-size-adjust: 100%;
+    }
+
+    body {
+        background-color: var(--page);
+        color: var(--text-body);
+        font-family: var(--font-sans);
+        font-feature-settings: 'cv11', 'ss01';
+        font-variation-settings: 'opsz' 32;
+    }
+
+    h1,
+    h2,
+    h3,
+    h4,
+    h5,
+    h6 {
+        color: var(--text-strong);
+        font-weight: 600;
+        text-wrap: balance;
+    }
+
+    /* Visible focus is a requirement, not a default (§115, §127). */
+    :focus-visible {
+        outline: 2px solid var(--primary-500);
+        outline-offset: 2px;
+    }
+
+    ::selection {
+        background-color: color-mix(
+            in oklab,
+            var(--brand-primary) 24%,
+            transparent
+        );
+    }
+}
+
+@layer utilities {
+    .scrollbar-thin {
+        scrollbar-width: thin;
+        scrollbar-color: var(--border) transparent;
+    }
+
+    .brand-gradient {
+        background-image: var(--brand-gradient);
+    }
+
+    .brand-gradient-text {
+        background-image: var(--brand-gradient);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+    }
+}
+
+/* §121: motion assists comprehension, never obstructs a CRM workflow. */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    ::before,
+    ::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}

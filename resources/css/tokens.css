@@ -1,0 +1,264 @@
+/**
+ * Design tokens (docs/plan/04-UI-SYSTEM.md §1, spec §106.2, §123, §126).
+ *
+ * Palette values are taken from the "UI Color Palettes" block of the supplied
+ * brand board and cross-checked against §106.2 — the two agree on every
+ * semantic colour.
+ *
+ * Three layers, deliberately independent:
+ *
+ *   1. Ramps      — the raw blue / emerald / amber / red / slate scales.
+ *   2. Semantic   — what a colour *means* here (surface, border, danger...).
+ *                   Redefined wholesale for dark mode.
+ *   3. Brand      — see brands.css. Swapped by the [data-brand] attribute so
+ *                   the identity can change without touching components.
+ *
+ * Components reference layers 2 and 3 only. A component that reaches for a raw
+ * ramp value is a bug: it will not respond to theme or brand changes.
+ */
+
+:root {
+    /* ---------------------------------------------------------------------
+     * Layer 1 — ramps, straight from the brand board
+     * ------------------------------------------------------------------ */
+
+    /* Primary (Blue) */
+    --blue-50: #eff6ff;
+    --blue-100: #dbeafe;
+    --blue-200: #bfdbfe;
+    --blue-300: #93c5fd;
+    --blue-400: #60a5fa;
+    --blue-500: #3b82f6;
+    --blue-600: #2563eb;
+    --blue-700: #1d4ed8;
+    --blue-800: #1e40af;
+    --blue-900: #1e3a8a;
+
+    /* Success (Green) */
+    --emerald-50: #ecfdf5;
+    --emerald-100: #d1fae5;
+    --emerald-200: #a7f3d0;
+    --emerald-300: #6ee7b7;
+    --emerald-400: #34d399;
+    --emerald-500: #10b981;
+    --emerald-600: #059669;
+    --emerald-700: #047857;
+    --emerald-800: #065f46;
+    --emerald-900: #064e3b;
+
+    /* Warning (Amber) */
+    --amber-50: #fffbeb;
+    --amber-100: #fef3c7;
+    --amber-200: #fde68a;
+    --amber-300: #fcd34d;
+    --amber-400: #fbbf24;
+    --amber-500: #f59e0b;
+    --amber-600: #d97706;
+    --amber-700: #b45309;
+    --amber-800: #92400e;
+    --amber-900: #78350f;
+
+    /* Danger (Red) */
+    --red-50: #fef2f2;
+    --red-100: #fee2e2;
+    --red-200: #fecaca;
+    --red-300: #fca5a5;
+    --red-400: #f87171;
+    --red-500: #ef4444;
+    --red-600: #dc2626;
+    --red-700: #b91c1c;
+    --red-800: #991b1b;
+    --red-900: #7f1d1d;
+
+    /* Neutral (Gray) — the board mixes slate with gray-800 for the darkest step */
+    --slate-50: #f8fafc;
+    --slate-100: #f1f5f9;
+    --slate-200: #e5e7eb;
+    --slate-300: #cbd5e1;
+    --slate-400: #94a3b8;
+    --slate-500: #64748b;
+    --slate-600: #475569;
+    --slate-700: #334155;
+    --slate-800: #1f2937;
+    --slate-900: #0f172a;
+    --slate-950: #08111f;
+
+    /* Backgrounds, as swatched on the board */
+    --bg-lightest: #f8fafc;
+    --bg-light: #f1f5f9;
+    --bg-muted: #e5e7eb;
+    --bg-dark: #111827;
+    --bg-darkest: #0f172a;
+
+    /* ---------------------------------------------------------------------
+     * Layer 2 — semantic (light)
+     * ------------------------------------------------------------------ */
+
+    --success: var(--emerald-500);
+    --success-soft: var(--emerald-100);
+    --success-strong: var(--emerald-700);
+    --warning: var(--amber-500);
+    --warning-soft: var(--amber-100);
+    --warning-strong: var(--amber-700);
+    --danger: var(--red-500);
+    --danger-soft: var(--red-100);
+    --danger-strong: var(--red-700);
+    --info: var(--blue-500);
+    --info-soft: var(--blue-100);
+    --info-strong: var(--blue-700);
+
+    --text-strong: var(--slate-900);
+    --text-body: var(--slate-700);
+    --text-muted: var(--slate-500);
+    --text-soft: var(--slate-400);
+    --text-inverse: var(--slate-50);
+
+    --border: #e2e8f0;
+    --border-soft: var(--slate-100);
+    --border-strong: var(--slate-300);
+
+    --surface: #ffffff;
+    --surface-alt: var(--slate-50);
+    --surface-sunken: var(--slate-100);
+    --page: #f6f8fc;
+    --sidebar: #ffffff;
+    --sidebar-hover: var(--slate-100);
+    --overlay: rgb(15 23 42 / 0.45);
+
+    --shadow-card:
+        0 1px 2px rgb(15 23 42 / 0.04), 0 1px 3px rgb(15 23 42 / 0.06);
+    --shadow-pop: 0 10px 24px rgb(15 23 42 / 0.1);
+    --shadow-modal: 0 24px 48px rgb(15 23 42 / 0.18);
+}
+
+/**
+ * Dark mode is a designed system, not an inversion (§123).
+ *
+ * Deep navy surfaces rather than pure #000000 — black flattens the hierarchy
+ * that separates page from sidebar from card. Soft state colours invert to
+ * dark tints so badges keep their meaning without glowing.
+ */
+.dark {
+    --success: var(--emerald-400);
+    --success-soft: var(--emerald-900);
+    --success-strong: var(--emerald-300);
+    --warning: var(--amber-400);
+    --warning-soft: var(--amber-900);
+    --warning-strong: var(--amber-300);
+    --danger: var(--red-400);
+    --danger-soft: var(--red-900);
+    --danger-strong: var(--red-300);
+    --info: var(--blue-400);
+    --info-soft: var(--blue-900);
+    --info-strong: var(--blue-300);
+
+    --text-strong: var(--slate-50);
+    --text-body: var(--slate-300);
+    --text-muted: var(--slate-400);
+    --text-soft: var(--slate-500);
+    --text-inverse: var(--slate-900);
+
+    --border: #24364d;
+    --border-soft: #1a2a3f;
+    --border-strong: #334f6e;
+
+    --surface: #0f1b2d;
+    --surface-alt: #12233a;
+    --surface-sunken: #0b1524;
+    --page: var(--slate-950);
+    --sidebar: #0b1524;
+    --sidebar-hover: #12233a;
+    --overlay: rgb(2 6 16 / 0.7);
+
+    --shadow-card: 0 1px 2px rgb(0 0 0 / 0.3), 0 1px 3px rgb(0 0 0 / 0.36);
+    --shadow-pop: 0 10px 24px rgb(0 0 0 / 0.5);
+    --shadow-modal: 0 24px 48px rgb(0 0 0 / 0.6);
+}
+
+@theme inline {
+    /* Typography (§107). Inter carries the application; Poppins is reserved
+     * for marketing headings, where its lower density is an asset rather than
+     * a readability cost. */
+    --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+    --font-display: 'Poppins', 'Inter', ui-sans-serif, system-ui, sans-serif;
+    --font-mono: ui-monospace, 'Cascadia Code', 'Source Code Pro', monospace;
+
+    /* Brand (layer 3, defined per-brand in brands.css) */
+    --color-brand: var(--brand-primary);
+    --color-brand-secondary: var(--brand-secondary);
+    --color-brand-accent: var(--brand-accent);
+    --color-brand-soft: var(--brand-soft);
+
+    /* Primary follows the selected brand, so picking a logo re-themes every
+     * primary action, active state and focus ring across the product. */
+    --color-primary-50: var(--brand-50);
+    --color-primary-100: var(--brand-100);
+    --color-primary-200: var(--brand-200);
+    --color-primary-300: var(--brand-300);
+    --color-primary-400: var(--brand-400);
+    --color-primary-500: var(--brand-500);
+    --color-primary-600: var(--brand-600);
+    --color-primary-700: var(--brand-700);
+    --color-primary-800: var(--brand-800);
+    --color-primary-900: var(--brand-900);
+
+    --color-blue-board: var(--blue-600);
+    --color-success: var(--success);
+    --color-success-soft: var(--success-soft);
+    --color-success-strong: var(--success-strong);
+    --color-warning: var(--warning);
+    --color-warning-soft: var(--warning-soft);
+    --color-warning-strong: var(--warning-strong);
+    --color-danger: var(--danger);
+    --color-danger-soft: var(--danger-soft);
+    --color-danger-strong: var(--danger-strong);
+    --color-info: var(--info);
+    --color-info-soft: var(--info-soft);
+    --color-info-strong: var(--info-strong);
+
+    --color-strong: var(--text-strong);
+    --color-body: var(--text-body);
+    --color-muted: var(--text-muted);
+    --color-soft: var(--text-soft);
+    --color-inverse: var(--text-inverse);
+
+    --color-border: var(--border);
+    --color-border-soft: var(--border-soft);
+    --color-border-strong: var(--border-strong);
+    --color-surface: var(--surface);
+    --color-surface-alt: var(--surface-alt);
+    --color-surface-sunken: var(--surface-sunken);
+    --color-page: var(--page);
+    --color-sidebar: var(--sidebar);
+    --color-sidebar-hover: var(--sidebar-hover);
+
+    --radius-control: 8px;
+    --radius-card: 12px;
+    --radius-pill: 999px;
+
+    --shadow-card: var(--shadow-card);
+    --shadow-pop: var(--shadow-pop);
+    --shadow-modal: var(--shadow-modal);
+
+    /* Type scale (§107) */
+    --text-caption: 0.75rem;
+    --text-caption--line-height: 1.125rem;
+    --text-small: 0.8125rem;
+    --text-small--line-height: 1.25rem;
+    --text-body: 0.875rem;
+    --text-body--line-height: 1.375rem;
+    --text-body-lg: 1rem;
+    --text-body-lg--line-height: 1.5rem;
+    --text-h4: 1.125rem;
+    --text-h4--line-height: 1.625rem;
+    --text-h3: 1.25rem;
+    --text-h3--line-height: 1.75rem;
+    --text-h2: 1.5rem;
+    --text-h2--line-height: 2rem;
+    --text-h1: 2rem;
+    --text-h1--line-height: 2.5rem;
+    --text-display: 3rem;
+    --text-display--line-height: 3.5rem;
+    --text-hero: 4rem;
+    --text-hero--line-height: 4.5rem;
+}

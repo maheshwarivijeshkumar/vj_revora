@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100" role="img" aria-label="Leadora">
+  <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#4F46E5"/><stop offset="1" stop-color="#2563EB"/></linearGradient><linearGradient id="a" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2563EB"/><stop offset="1" stop-color="#06B6D4"/></linearGradient></defs>
+
+    <path d="M34,22 V60 a10,10 0 0 0 10,10 H68"
+          fill="none" stroke="url(#g)" stroke-width="16"
+          stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M76,14 L79.54,24.46 L90,28 L79.54,31.54 L76,42 L72.46,31.54 L62,28 L72.46,24.46 Z"
+          fill="url(#a)"/>
+</svg>

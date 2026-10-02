@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 150" width="500" height="150" role="img" aria-label="Revora — Grow Faster. Generate More Revenue.">
+  <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#059669"/><stop offset="1" stop-color="#10B981"/></linearGradient><linearGradient id="a" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#10B981"/><stop offset="1" stop-color="#2563EB"/></linearGradient></defs>
+  <g transform="translate(16,30) scale(0.9)">
+
+    <g fill="url(#g)">
+      <rect x="12" y="60" width="17" height="28" rx="8"/>
+      <rect x="37" y="48" width="17" height="40" rx="8"/>
+      <rect x="62" y="36" width="17" height="52" rx="8"/>
+    </g>
+    <g fill="none" stroke="url(#a)" stroke-width="9"
+       stroke-linecap="round" stroke-linejoin="round">
+      <path d="M14,54 L36,42 L54,48 L84,20"/>
+      <path d="M68,20 H84 V36"/>
+    </g>
+  </g>
+  <text x="128" y="86" font-family="Inter, 'Segoe UI', system-ui, sans-serif"
+        font-size="52" font-weight="700" letter-spacing="-1"><tspan fill="#0F172A">Revora</tspan></text>
+  <text x="130" y="117" font-family="Inter, 'Segoe UI', system-ui, sans-serif"
+        font-size="19" font-weight="400" fill="#64748B">Grow Faster. Generate More Revenue.</text>
+</svg>
