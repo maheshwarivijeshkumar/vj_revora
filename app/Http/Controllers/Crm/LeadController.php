@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Crm;
 
 use App\Domain\Leads\Enums\LeadStatus;
+use App\Domain\Leads\Enums\VerificationStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Lead;
 use App\Models\LeadSource;
@@ -30,6 +31,7 @@ final class LeadController extends Controller
     private const SORTABLE = [
         'full_name', 'email', 'company_name', 'status',
         'score', 'created_at', 'last_activity_at', 'next_follow_up_at',
+        'verification_status', 'verification_confidence',
     ];
 
     public function index(Request $request): Response
@@ -64,6 +66,7 @@ final class LeadController extends Controller
                 'status' => $request->input('status', []),
                 'owner_id' => $request->input('owner_id', []),
                 'source_id' => $request->input('source_id', []),
+                'verification' => $request->input('verification', []),
                 'score_min' => $request->input('score_min'),
                 'score_max' => $request->input('score_max'),
                 'sort' => $sort,
@@ -74,6 +77,7 @@ final class LeadController extends Controller
             // options need not block the table rendering (Inertia v3).
             'options' => Inertia::defer(fn (): array => [
                 'statuses' => LeadStatus::options(),
+                'verificationStatuses' => VerificationStatus::options(),
                 'owners' => User::query()
                     ->where('status', 'active')
                     ->orderBy('name')
@@ -132,6 +136,10 @@ final class LeadController extends Controller
             ->when(
                 $this->list($request, 'source_id'),
                 fn (Builder $q, array $values) => $q->whereIn('lead_source_id', $values),
+            )
+            ->when(
+                $this->list($request, 'verification'),
+                fn (Builder $q, array $values) => $q->whereIn('verification_status', $values),
             )
             ->when(
                 $request->filled('score_min'),
@@ -200,6 +208,19 @@ final class LeadController extends Controller
             'status_label' => $lead->status->label(),
             'status_tone' => $lead->status->tone(),
             'score' => $lead->score,
+            'verification' => $lead->verification_status->value,
+            'verification_label' => $lead->verification_status->label(),
+            'verification_tone' => $lead->verification_status->tone(),
+            'verification_confidence' => $lead->verification_confidence,
+            // The reasons travel with the row, so hovering a flag explains it
+            // rather than costing a request (§59).
+            'verification_problems' => array_column(
+                array_filter(
+                    $lead->verification_findings ?? [],
+                    fn (array $finding): bool => $finding['verdict'] !== 'pass',
+                ),
+                'detail',
+            ),
             'owner' => $lead->owner?->name,
             'source' => $lead->source?->name,
             // The provenance signal §2 requires on every lead: an imported
@@ -208,6 +229,18 @@ final class LeadController extends Controller
             'last_activity_at' => $lead->last_activity_at?->toIso8601String(),
             'next_follow_up_at' => $lead->next_follow_up_at?->toIso8601String(),
             'created_at' => $lead->created_at?->toIso8601String(),
+
+            // The fields the edit form needs. Carried on the row so opening the
+            // drawer is instant: a second request to fetch one record the table
+            // already has would be a spinner for nothing.
+            'first_name' => $lead->first_name,
+            'last_name' => $lead->last_name,
+            'job_title' => $lead->job_title,
+            'website' => $lead->website,
+            'country' => $lead->country,
+            'owner_id' => $lead->owner_id,
+            'lead_source_id' => $lead->lead_source_id,
+            'consent' => $lead->consent,
         ];
     }
 }

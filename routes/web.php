@@ -6,9 +6,14 @@ use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Branding\BrandPreviewController;
 use App\Http\Controllers\Crm\BulkLeadController;
 use App\Http\Controllers\Crm\CompanyController;
+use App\Http\Controllers\Crm\CompanyWriteController;
 use App\Http\Controllers\Crm\ContactController;
+use App\Http\Controllers\Crm\ContactWriteController;
 use App\Http\Controllers\Crm\DealBoardController;
+use App\Http\Controllers\Crm\DealWriteController;
 use App\Http\Controllers\Crm\LeadController;
+use App\Http\Controllers\Crm\LeadDetailController;
+use App\Http\Controllers\Crm\LeadWriteController;
 use App\Http\Controllers\Marketing\ContactController as ContactEnquiryController;
 use App\Http\Controllers\Marketing\WaitlistController;
 use App\Http\Controllers\SearchController;
@@ -110,6 +115,24 @@ Route::middleware(['auth', 'tenant.active'])->group(function (): void {
         ->middleware('permission:lead.view')
         ->name('leads.index');
 
+    // Declared before the write routes so `/leads/bulk` is not swallowed by
+    // the `{lead}` parameter, and after the index so `/leads` still lists.
+    Route::get('/leads/{lead}', [LeadDetailController::class, 'show'])
+        ->middleware('permission:lead.view')
+        ->name('leads.show');
+
+    Route::post('/leads', [LeadWriteController::class, 'store'])
+        ->middleware('permission:lead.create')
+        ->name('leads.store');
+
+    Route::patch('/leads/{lead}', [LeadWriteController::class, 'update'])
+        ->middleware('permission:lead.update')
+        ->name('leads.update');
+
+    Route::delete('/leads/{lead}', [LeadWriteController::class, 'destroy'])
+        ->middleware('permission:lead.delete')
+        ->name('leads.destroy');
+
     // Bulk actions (§113). The permission depends on the action in the body, so
     // the route carries only lead.view and the controller checks the rest.
     Route::post('/leads/bulk', [BulkLeadController::class, 'store'])
@@ -124,13 +147,49 @@ Route::middleware(['auth', 'tenant.active'])->group(function (): void {
         ->middleware('permission:contact.view')
         ->name('contacts.index');
 
+    Route::post('/contacts', [ContactWriteController::class, 'store'])
+        ->middleware('permission:contact.create')
+        ->name('contacts.store');
+
+    Route::patch('/contacts/{contact}', [ContactWriteController::class, 'update'])
+        ->middleware('permission:contact.update')
+        ->name('contacts.update');
+
+    Route::delete('/contacts/{contact}', [ContactWriteController::class, 'destroy'])
+        ->middleware('permission:contact.delete')
+        ->name('contacts.destroy');
+
     Route::get('/companies', [CompanyController::class, 'index'])
         ->middleware('permission:company.view')
         ->name('companies.index');
 
+    Route::post('/companies', [CompanyWriteController::class, 'store'])
+        ->middleware('permission:company.create')
+        ->name('companies.store');
+
+    Route::patch('/companies/{company}', [CompanyWriteController::class, 'update'])
+        ->middleware('permission:company.update')
+        ->name('companies.update');
+
+    Route::delete('/companies/{company}', [CompanyWriteController::class, 'destroy'])
+        ->middleware('permission:company.delete')
+        ->name('companies.destroy');
+
     Route::get('/deals', [DealBoardController::class, 'index'])
         ->middleware('permission:deal.view')
         ->name('deals.index');
+
+    Route::post('/deals', [DealWriteController::class, 'store'])
+        ->middleware('permission:deal.create')
+        ->name('deals.store');
+
+    Route::patch('/deals/{deal}', [DealWriteController::class, 'update'])
+        ->middleware('permission:deal.update')
+        ->name('deals.update');
+
+    Route::delete('/deals/{deal}', [DealWriteController::class, 'destroy'])
+        ->middleware('permission:deal.delete')
+        ->name('deals.destroy');
 
     Route::post('/deals/{deal}/move', [DealBoardController::class, 'move'])
         ->middleware('permission:deal.update')

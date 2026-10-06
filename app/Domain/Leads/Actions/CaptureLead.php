@@ -13,6 +13,8 @@ use App\Domain\Leads\Exceptions\UnusableLeadException;
 use App\Domain\Leads\Services\LeadAssigner;
 use App\Domain\Leads\Services\LeadDeduplicator;
 use App\Domain\Leads\Services\LeadScorer;
+use App\Domain\Leads\Services\LeadVerifier;
+use App\Jobs\VerifyLead;
 use App\Models\Lead;
 use App\Models\LeadEvent;
 use App\Models\LeadMerge;
@@ -27,7 +29,7 @@ use Illuminate\Support\Facades\DB;
  * path, because the interesting behaviour — deduplication, scoring, routing —
  * must be identical however a lead arrived.
  *
- *   normalize → deduplicate → score → assign → emit
+ *   normalize → deduplicate → score → verify → assign → emit
  *
  * Normalization happens before this runs; callers pass a NormalizedLead.
  */
@@ -37,6 +39,7 @@ final readonly class CaptureLead
         private LeadDeduplicator $deduplicator,
         private LeadScorer $scorer,
         private LeadAssigner $assigner,
+        private LeadVerifier $verifier,
     ) {}
 
     /**
@@ -84,11 +87,27 @@ final readonly class CaptureLead
 
             $this->recordEvent($lead, LeadEvent::SCORED, $score->toArray());
 
-            // Only new leads are routed. Reassigning on a repeat submission
-            // would pull the lead out from under whoever is already working it.
+            // Verified inline but with the DNS check off: a form submission
+            // must not wait on somebody else's resolver (§72). The queued
+            // re-verification is what adds the MX answer, so a lead is usable
+            // immediately and accurate shortly after.
+            $verification = $this->verifier->apply($lead, checkMx: false);
+
+            $this->recordEvent($lead, LeadEvent::VERIFIED, $verification->toArray());
+
+            // Queued after the transaction commits, so the worker cannot read a
+            // lead that is not there yet.
+            DB::afterCommit(fn () => VerifyLead::dispatch($lead->id));
+
+            // Only new leads are routed, and only ones worth a human's time:
+            // handing a rep an address that cannot receive mail wastes the one
+            // resource routing exists to allocate (§18).
             $assignment = null;
 
-            if ($assign && ! $result['duplicate'] && $lead->owner_id === null) {
+            if ($assign
+                && ! $result['duplicate']
+                && $lead->owner_id === null
+                && $verification->status->isWorkable()) {
                 $assignment = $this->assigner->assign($lead);
 
                 if ($assignment !== null) {

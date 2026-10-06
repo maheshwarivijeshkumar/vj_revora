@@ -13,6 +13,7 @@ enum BulkAction: string
     case ChangeStatus = 'change_status';
     case AddTag = 'add_tag';
     case RemoveTag = 'remove_tag';
+    case Verify = 'verify';
     case Delete = 'delete';
 
     public function label(): string
@@ -22,6 +23,7 @@ enum BulkAction: string
             self::ChangeStatus => 'Change status',
             self::AddTag => 'Add tag',
             self::RemoveTag => 'Remove tag',
+            self::Verify => 'Check details',
             self::Delete => 'Delete',
         };
     }
@@ -45,6 +47,11 @@ enum BulkAction: string
         return match ($this) {
             self::Assign => "{$entity}.assign",
             self::Delete => "{$entity}.delete",
+            // Verification reads the record and writes only its own columns,
+            // so viewing is enough: it tells you nothing you could not already
+            // see, and gating it behind edit would stop the people who most
+            // need it from triaging a list.
+            self::Verify => "{$entity}.view",
             default => "{$entity}.update",
         };
     }

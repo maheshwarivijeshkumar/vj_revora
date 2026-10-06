@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { Head, router } from '@inertiajs/vue3';
-import { ExternalLink, Plus } from 'lucide-vue-next';
-import { computed, ref, watch } from 'vue';
+import { ExternalLink, Pencil, Plus, Trash2 } from 'lucide-vue-next';
+import { computed, ref, watch, onMounted } from 'vue';
+import CompanyFormDrawer, {
+    type EditableCompany,
+} from '@/components/crm/CompanyFormDrawer.vue';
 import DataTable, {
     type Column,
     type Density,
@@ -23,9 +26,11 @@ type CompanyRow = {
     industry: string | null;
     size: string | null;
     country: string | null;
+    phone: string | null;
     contacts_count: number;
     deals_count: number;
     owner: string | null;
+    owner_id: number | null;
     created_at: string | null;
 };
 
@@ -54,6 +59,60 @@ const props = defineProps<{
 }>();
 
 const { can } = useAuthorization();
+
+/** The record the drawer is editing: null creates, undefined means closed. */
+const editing = ref<EditableCompany | null | undefined>(undefined);
+
+/**
+ * Opens the create drawer when arrived at from the global Create menu.
+ *
+ * Read once on mount and then dropped from the URL, so a refresh or a shared
+ * link does not reopen a form the person has already dealt with.
+ */
+onMounted(() => {
+    const url = new URL(window.location.href);
+
+    if (url.searchParams.get('new') === null) {
+        return;
+    }
+
+    createCompany();
+    url.searchParams.delete('new');
+    window.history.replaceState({}, '', url.toString());
+});
+
+function createCompany(): void {
+    editing.value = null;
+}
+
+function editCompany(row: CompanyRow): void {
+    editing.value = {
+        id: row.id,
+        name: row.name,
+        domain: row.domain,
+        website: row.website,
+        industry: row.industry,
+        size: row.size,
+        country: row.country,
+        phone: row.phone,
+        owner_id: row.owner_id,
+    };
+}
+
+function deleteCompany(row: CompanyRow): void {
+    // Names the record, and says what else goes with it: a company with people
+    // and deals attached is not an obvious thing to delete (§113).
+    const attached =
+        row.contacts_count + row.deals_count > 0
+            ? ` Its ${row.contacts_count} contacts and ${row.deals_count} deals stay, but lose this link.`
+            : '';
+
+    if (!window.confirm(`Delete ${row.name}?${attached}`)) {
+        return;
+    }
+
+    router.delete(`/companies/${row.id}`, { preserveScroll: true });
+}
 
 const selected = ref<(number | string)[]>([]);
 const density = ref<Density>('default');
@@ -152,7 +211,12 @@ function formatDate(value: string | null): string {
 
     <AppLayout title="Companies" :breadcrumbs="[{ label: 'Companies' }]">
         <template #actions>
-            <Button v-if="can('company.create')" variant="primary" size="sm">
+            <Button
+                v-if="can('company.create')"
+                variant="primary"
+                size="sm"
+                @click="createCompany"
+            >
                 <Plus class="size-4" />
                 New company
             </Button>
@@ -281,6 +345,29 @@ function formatDate(value: string | null): string {
                     {{ formatDate(row.created_at) }}
                 </template>
 
+                <template #actions="{ row }">
+                    <div class="flex items-center justify-end gap-0.5">
+                        <button
+                            v-if="can('company.update')"
+                            type="button"
+                            class="rounded-md p-1.5 text-muted transition-colors hover:bg-surface-alt hover:text-strong"
+                            :aria-label="`Edit ${row.name}`"
+                            @click="editCompany(row)"
+                        >
+                            <Pencil class="size-4" />
+                        </button>
+                        <button
+                            v-if="can('company.delete')"
+                            type="button"
+                            class="rounded-md p-1.5 text-muted transition-colors hover:bg-danger-soft hover:text-danger"
+                            :aria-label="`Delete ${row.name}`"
+                            @click="deleteCompany(row)"
+                        >
+                            <Trash2 class="size-4" />
+                        </button>
+                    </div>
+                </template>
+
                 <template #empty>
                     <EmptyState
                         :title="
@@ -309,6 +396,14 @@ function formatDate(value: string | null): string {
                             >
                                 Clear filters
                             </Button>
+                            <Button
+                                v-else-if="can('company.create')"
+                                variant="primary"
+                                size="sm"
+                                @click="createCompany"
+                            >
+                                Create the first company
+                            </Button>
                         </template>
                     </EmptyState>
                 </template>
@@ -328,5 +423,12 @@ function formatDate(value: string | null): string {
                 @per-page="(size) => navigate({ per_page: size })"
             />
         </div>
+
+        <CompanyFormDrawer
+            :open="editing !== undefined"
+            :company="editing ?? null"
+            :options="options"
+            @close="editing = undefined"
+        />
     </AppLayout>
 </template>

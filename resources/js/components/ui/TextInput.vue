@@ -12,8 +12,15 @@ const props = withDefaults(
         required?: boolean;
         invalid?: boolean;
         hint?: boolean;
+        disabled?: boolean;
     }>(),
-    { type: 'text', required: false, invalid: false, hint: false },
+    {
+        type: 'text',
+        required: false,
+        invalid: false,
+        hint: false,
+        disabled: false,
+    },
 );
 
 defineEmits<{ 'update:modelValue': [value: string]; blur: [] }>();
@@ -36,6 +43,7 @@ const describedBy = computed(() => {
         :aria-required="required || undefined"
         :aria-invalid="invalid || undefined"
         :aria-describedby="describedBy"
+        :disabled="disabled"
         :class="
             cn(
                 'h-11 w-full rounded-lg border bg-surface px-3.5 text-[0.95rem] text-strong',
@@ -44,6 +52,10 @@ const describedBy = computed(() => {
                 invalid
                     ? 'border-danger focus-visible:outline-danger'
                     : 'border-border hover:border-border-strong',
+                // Visibly inert rather than merely unresponsive: a field that
+                // looks editable and ignores typing reads as a bug.
+                disabled &&
+                    'cursor-not-allowed bg-surface-alt text-muted hover:border-border',
             )
         "
         @input="$emit('update:modelValue', ($event.target as HTMLInputElement).value)"

@@ -202,34 +202,190 @@ provisioning job in 1.2.
   exact count, real progress for long runs, partial-result summaries and audit.
   23 tests.
 
-  - **Iterates models; never issues a mass UPDATE.** A mass update is faster and
-    wrong: it bypasses observers, so the change would reach no audit row, fire no
-    webhook and skip the normalised columns the save hooks maintain. A bulk edit
-    has to mean the same thing as the same edit made one row at a time, and there
-    is a test asserting exactly that.
-  - **Permission per action, not per "bulk".** Someone who may reassign leads is
-    not thereby allowed to delete them, so the check happens in the controller
-    where the action in the body is known rather than on the route.
-  - **One record failing does not fail the operation.** Twenty-four rows where two
-    have since been deleted updates twenty-two and says so. Ids are re-resolved
-    through the tenant scope first, so an id from another workspace is not even
-    counted in the total and the summary cannot imply it was touched.
-  - **Inline up to 200, queued above it.** A selection that finishes inside the
-    request gets its answer immediately rather than a progress bar for something
-    that took 80ms; above the threshold `bulk_operations` carries real progress
-    the page polls by uuid. The job has `tries = 1`, because a retry would
-    reapply the action to records it already changed.
-  - The operation itself is audited in addition to the per-record rows, otherwise
-    the trail shows fifty edits and not the single decision that caused them.
+    - **Iterates models; never issues a mass UPDATE.** A mass update is faster and
+      wrong: it bypasses observers, so the change would reach no audit row, fire no
+      webhook and skip the normalised columns the save hooks maintain. A bulk edit
+      has to mean the same thing as the same edit made one row at a time, and there
+      is a test asserting exactly that.
+    - **Permission per action, not per "bulk".** Someone who may reassign leads is
+      not thereby allowed to delete them, so the check happens in the controller
+      where the action in the body is known rather than on the route.
+    - **One record failing does not fail the operation.** Twenty-four rows where two
+      have since been deleted updates twenty-two and says so. Ids are re-resolved
+      through the tenant scope first, so an id from another workspace is not even
+      counted in the total and the summary cannot imply it was touched.
+    - **Inline up to 200, queued above it.** A selection that finishes inside the
+      request gets its answer immediately rather than a progress bar for something
+      that took 80ms; above the threshold `bulk_operations` carries real progress
+      the page polls by uuid. The job has `tries = 1`, because a retry would
+      reapply the action to records it already changed.
+    - The operation itself is audited in addition to the per-record rows, otherwise
+      the trail shows fifty edits and not the single decision that caused them.
 
-  The `taggables` pivot had the same two latent defects `contact_company` did —
-  no `tenant_id` on attach, and no scoping on the join. Fixed on all four
-  taggable models.
+    The `taggables` pivot had the same two latent defects `contact_company` did —
+    no `tenant_id` on attach, and no scoping on the join. Fixed on all four
+    taggable models.
 
-Still open in Phase 1: lead and deal detail screens (§44), activities, tasks,
-notes and attachments (1.8 — bulk actions were a §113 concern and are done, but
-the polymorphic activity model this row is really about is not), and the
-widget-driven dashboard (1.10).
+- **Create and edit forms — done.** Leads, contacts, companies and deals can
+  each be created, edited and deleted from the UI. 70 tests.
+
+    Until this landed, every "New …" button and every row's edit pencil was inert:
+    the lists, the bulk actions and the REST API were all built on top of records
+    that could only arrive through a seeder or an integration. That was the gap.
+
+    - **A shared `Drawer`** rather than a page per form. Editing happens from a
+      list, and losing your filters and scroll position to navigate away is the
+      thing CRM users complain about. It is a real modal dialog: focus trapped,
+      focus returned on close, Escape, `aria-modal`, body-scroll locked, and it
+      refuses to close mid-save.
+    - **Every form runs the same domain action its API counterpart does.** A lead
+      typed in by a rep goes through `CaptureLead`, so it is deduplicated, scored,
+      routed, audited and announced identically to one that arrived over a webhook
+      — §5 and §85 list manual entry alongside the other sources for exactly this
+      reason. Contacts and companies run their upserts. Deals run `CreateDeal`, so
+      the opening stage-change record exists and duration reporting has a start.
+    - **"Already on file" is said out loud.** When a create matches an existing
+      record the flash explains that the details were added to it, rather than
+      leaving the user hunting for a row that was never created.
+    - **A deal's stage is shown, not edited.** A move recalculates probability, may
+      close the deal and reorders two columns; the field is simply absent from the
+      ruleset, as it is over the API. Changing a deal's pipeline is refused for the
+      same reason: it would orphan the deal on a stage belonging to the old one.
+    - Rows carry the fields their form edits, so a drawer opens on data already in
+      hand rather than spending a request on a record the table just delivered.
+
+    **`Rule::exists` does not respect the tenant scope.** It builds its own query
+    straight on the table, so Eloquent's global scope never runs — the first
+    version of the lead form accepted an `owner_id` from another workspace and
+    would have assigned ownership across the boundary. Every `exists` in a form
+    request is now scoped explicitly with a comment saying why. This is the one
+    place the fail-closed scope cannot help, and it is worth remembering before
+    the next form is written.
+
+- **Lead verification — done.** Answers "are these details genuine" for every
+  lead, whatever door it came through. Four states (not checked / verified /
+  needs a look / not usable), a confidence score, and the findings that produced
+  them. 20 tests.
+
+    The pipeline is now `normalize → deduplicate → score → verify → assign → emit`.
+
+    - **Source-independent on purpose.** A lead from an authorized provider feed
+      can carry a typo and a hand-typed one can be perfect. Provenance stays a
+      separate signal with its own badge (§2).
+    - **Checks:** address syntax, MX/A record, throwaway providers, role
+      addresses, placeholder values, low-vowel mailbox names, phone length against
+      E.164, repeated digits, whole-number digit runs, placeholder names, and
+      whether consent was ever recorded (§88).
+    - **Risky is kept, not binned.** `info@` is how plenty of small businesses
+      genuinely reply, and a free mailbox matters for enterprise sales and not at
+      all for B2C — so both are visible reasons rather than rejections. Only a lead
+      that cannot be reached at all is excluded, which is what `scopeWorkable`
+      means and what the list's "Reachable only" toggle filters on.
+    - **Routing skips unworkable leads.** Handing a rep an address that cannot
+      receive mail wastes the one resource assignment exists to allocate.
+    - **The DNS lookup is off inline, on from the queue.** A form must not wait on
+      somebody else's resolver, so capture verifies without it and `VerifyLead`
+      re-runs with it immediately after — usable at once, accurate a second later.
+    - Every verdict carries words a rep can act on (§59). A flag nobody can
+      explain is a flag nobody trusts, and "not usable" with no reason cannot be
+      corrected.
+
+    Two heuristics needed tightening against real data while writing the tests:
+    gibberish detection is conservative (flagging a real person costs more than
+    missing a bot, so `jo@` and `a.okafor@` must pass), and the digit-run check
+    requires the run to cover the whole number — the valid UAE mobile
+    `+971501234567` contains `1234567`, so anything looser rejects genuine leads.
+
+    **Not built, and deliberately not:** scraping leads from Facebook, Instagram,
+    LinkedIn or job boards. §2 is authorized APIs only, and a scraped record has no
+    lawful basis to put in `consent_source`, which §88 requires before anyone is
+    contacted. The authorized equivalents — Meta Lead Ads API, LinkedIn Lead Gen
+    Forms, job-board partner APIs — give the same reach with consent captured at
+    source, and `IntegrationProviderSeeder` already anticipates them.
+
+- **Phone validation, every country — done.** Backed by Google's libphonenumber
+  metadata (`giggsey/libphonenumber-for-php-lite`, approved as a dependency).
+  50 tests, covering valid mobiles across 22 countries.
+
+    - **Validity is judged against each country's numbering plan**, not a digit
+      count. `+97141234567` has a valid UAE prefix and twelve digits and is still
+      not a UAE number; nothing short of the real metadata can tell you that.
+    - **Mobile is distinguished from landline, VoIP, toll-free and premium rate** —
+      except where the plan genuinely does not distinguish them. North America is
+      `FIXED_LINE_OR_MOBILE`, so `isMobile()` accepts it: insisting on a definite
+      MOBILE would reject every American mobile there is. The code says so rather
+      than guessing.
+    - **A landline warns, it does not fail.** Whole industries answer theirs; it
+      just cannot be texted. Premium-rate and shared-cost lines do fail — that is
+      not how somebody asks to be contacted.
+    - `phone_type` and `phone_country` are stored, because "can this lead be
+      texted" decides which channel reaches them and parsing on every send would
+      put Google's metadata on the hot path of every message.
+    - A region hint is taken in order of how much it deserves trust: the number's
+      own prefix, then the record's country, then `verification.default_region`.
+      Guessing from the server locale would silently mangle numbers for every
+      workspace not in that country, so with no hint a national number stays
+      honestly unparseable.
+
+    **This fixed a real deduplication hole.** `phone_normalized` was digits-only,
+    so `050 123 4567` and `+971 50 123 4567` never matched — the same person
+    entered both ways stayed two leads. It is now E.164, and all four common
+    notations collapse to one key. A `CaptureLeadTest` case had been _asserting_
+    the old limitation; it now asserts the fix.
+
+    Two bugs surfaced while testing: a leading `00` is the ITU international
+    prefix and libphonenumber only reads it as one when it knows the caller's
+    country, so `00971…` parsed to nothing until it was rewritten to `+` (`011` is
+    handled too, for North America). And the old digit-run heuristic flagged the
+    valid UAE mobile `+971501234567`, because it contains `1234567` — deleted
+    entirely, since the metadata answers the question properly.
+
+    **`php artisan leads:renormalise-phones` backfills existing rows**, chunked by
+    id, tenant by tenant, `--dry-run` first, and quietly — a normalisation is not
+    an edit anyone made, so it fires no webhook and writes no audit row. Rows
+    written by the old normaliser hold keys that no longer match what a new row
+    produces, so **deduplication silently misses them until this has run.**
+
+- **Lead detail screen — done.** `/leads/{lead}`, with five tabs and the right
+  rail §44 asks for. 19 tests.
+
+  - **Only tabs with something behind them.** §44 also lists conversations,
+    emails, WhatsApp, tasks, appointments, notes and documents; those arrive
+    with the modules that produce them. An empty tab implies a feature exists,
+    which is worse than its absence (§124).
+  - **The score is explained, not just stated** — the matched rules and their
+    points, from the stored `LeadScore`. §19's whole point is that a rep who
+    cannot see why a lead scored 82 will ignore the number.
+  - **Verification findings in words**, each one something that can be acted on
+    (§59). "Needs a look" with no reason cannot be corrected.
+  - **The timeline is built from `lead_events`**, newest first, each entry
+    expandable to its payload. An unlabelled event type degrades to a readable
+    form rather than vanishing, because providers may add their own and a gap in
+    the timeline is worse than an unpolished line in it.
+  - **Provenance is visible** (§2): source, type, and an "authorized provider"
+    marker, plus UTM parameters and the write-once first touch (§34).
+  - **A merged lead announces that it is a tombstone**, with a link to the
+    record it now lives under — otherwise someone works a person who moved.
+    A master says how many submissions its history is combined from.
+  - The audit tab is deferred: least-opened tab, most expensive query.
+  - Click-to-call dials the stored E.164 form, so the link works from any
+    country, while still showing the number as it was typed.
+
+  Three things this surfaced. `LeadEvent` had no `casts()`, so `occurred_at`
+  came back as a string — the timeline would have been sorting and formatting
+  text. The command palette's lead hits pointed at a filtered list, which was
+  the stand-in while there was no record to open, and now go straight to it.
+  And **`LeadFactory` was generating invalid phone numbers**: `+9715` plus
+  random digits produces prefixes like 51, 53 and 57, none of which the UAE
+  assigns, so roughly 40% of factory leads failed validation. Fixed in both
+  factories — test data that does not validate is a trap for every test written
+  after it.
+
+Still open in Phase 1: the deal detail screen (§44), activities, tasks, notes
+and attachments (1.8 — bulk actions were a §113 concern and are done, but the
+polymorphic activity model this row is really about is not), and the
+widget-driven dashboard (1.10). Authorized provider ingestion (Meta Lead Ads,
+LinkedIn Lead Gen Forms, job-board partner feeds) is Phase 2's integration work.
 
 | #    | Deliverable                                                                   |
 | ---- | ----------------------------------------------------------------------------- |

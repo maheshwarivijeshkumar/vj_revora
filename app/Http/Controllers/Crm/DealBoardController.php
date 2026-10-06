@@ -7,9 +7,12 @@ namespace App\Http\Controllers\Crm;
 use App\Domain\Deals\Actions\MoveDealToStage;
 use App\Domain\Deals\Exceptions\StageTransitionException;
 use App\Http\Controllers\Controller;
+use App\Models\Company;
+use App\Models\Contact;
 use App\Models\Deal;
 use App\Models\Pipeline;
 use App\Models\PipelineStage;
+use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
@@ -28,6 +31,13 @@ final class DealBoardController extends Controller
      * would make the board slow to open for no benefit — nobody scrolls to the
      * four hundredth card. The column header always shows the true total.
      */
+    /**
+     * Offered alongside whatever the workspace already uses.
+     *
+     * @var list<string>
+     */
+    private const COMMON_CURRENCIES = ['AED', 'AUD', 'CAD', 'EUR', 'GBP', 'INR', 'SAR', 'USD'];
+
     private const CARDS_PER_STAGE = 50;
 
     public function index(Request $request): Response
@@ -50,6 +60,9 @@ final class DealBoardController extends Controller
                 ->all(),
             'stages' => $this->stages($pipeline),
             'cardLimit' => self::CARDS_PER_STAGE,
+            // Deferred: the board draws without them, and only the form needs
+            // them (Inertia v3).
+            'options' => Inertia::defer(fn (): array => $this->formOptions()),
         ]);
     }
 
@@ -168,10 +181,68 @@ final class DealBoardController extends Controller
                     'owner' => $deal->owner?->name,
                     'company' => $deal->company?->name,
                     'expected_close_date' => $deal->expected_close_date?->toDateString(),
+
+                    // The fields the edit form needs, so opening it costs
+                    // nothing beyond the board request already made.
+                    'owner_id' => $deal->owner_id,
+                    'company_id' => $deal->company_id,
+                    'contact_id' => $deal->contact_id,
+                    'lost_reason' => $deal->lost_reason,
+                    'stage_name' => $stage->name,
                 ])->all(),
             ];
         }
 
         return $columns;
+    }
+
+    /**
+     * Options for the create and edit form.
+     *
+     * Currencies come from what the workspace already uses plus a short default
+     * list: a full ISO 4217 dropdown is 180 entries nobody scrolls, and a
+     * free-text box produces "usd", "USD " and "Dollars" in one afternoon.
+     *
+     * @return array<string, mixed>
+     */
+    private function formOptions(): array
+    {
+        $used = Deal::query()
+            ->distinct()
+            ->orderBy('currency')
+            ->pluck('currency')
+            ->all();
+
+        $currencies = array_values(array_unique([...$used, ...self::COMMON_CURRENCIES]));
+        sort($currencies);
+
+        return [
+            'owners' => User::query()
+                ->where('status', 'active')
+                ->orderBy('name')
+                ->get(['id', 'name'])
+                ->map(fn (User $u): array => ['value' => (string) $u->id, 'label' => $u->name])
+                ->all(),
+            'companies' => Company::query()
+                ->orderBy('name')
+                ->limit(200)
+                ->get(['id', 'name'])
+                ->map(fn (Company $c): array => ['value' => (string) $c->id, 'label' => $c->name])
+                ->all(),
+            'contacts' => Contact::query()
+                ->orderBy('full_name')
+                ->limit(200)
+                ->get(['id', 'full_name', 'email'])
+                ->map(fn (Contact $c): array => [
+                    'value' => (string) $c->id,
+                    'label' => $c->displayName(),
+                    'note' => $c->email,
+                ])
+                ->all(),
+            'currencies' => array_map(
+                fn (string $code): array => ['value' => $code, 'label' => $code],
+                $currencies,
+            ),
+        ];
     }
 }

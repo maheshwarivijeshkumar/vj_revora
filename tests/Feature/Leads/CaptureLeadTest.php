@@ -202,18 +202,21 @@ it('matches an existing lead on normalised email', function (): void {
         ->and($second->lead->company_name)->toBe('Acme Ltd');
 });
 
-it('matches on phone when the email differs', function (): void {
+it('matches on phone however the number was written', function (): void {
     $this->capture->handle(normalize(['email' => 'one@example.com', 'phone' => '+971501234567']));
 
-    $second = $this->capture->handle(normalize(['phone' => '00971501234567']));
+    // All three dial the same handset, so all three are the same person. The
+    // digits-only normaliser this replaced could not see that: `00971…` kept no
+    // country code, so it never matched `+971…` and one person became two
+    // leads (§18).
+    foreach (['00971501234567', '+971 50 123 4567', '+971-50-123-4567'] as $written) {
+        $result = $this->capture->handle(normalize(['phone' => $written]));
 
-    // Same digits, different notation: still the same person.
-    expect($second->isDuplicate)->toBeFalse();
+        expect($result->isDuplicate)->toBeTrue()
+            ->and($result->matchedOn)->toBe(LeadDeduplicator::MATCH_PHONE);
+    }
 
-    $third = $this->capture->handle(normalize(['phone' => '+971 50 123 4567']));
-
-    expect($third->isDuplicate)->toBeTrue()
-        ->and($third->matchedOn)->toBe(LeadDeduplicator::MATCH_PHONE);
+    expect(Lead::count())->toBe(1);
 });
 
 it('prefers an external id over weaker signals', function (): void {

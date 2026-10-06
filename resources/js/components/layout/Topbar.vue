@@ -12,6 +12,7 @@ import {
 } from 'lucide-vue-next';
 import { computed } from 'vue';
 import Avatar from '@/components/ui/Avatar.vue';
+import CreateMenu from '@/components/layout/CreateMenu.vue';
 import Button from '@/components/ui/Button.vue';
 import { useThemeStore } from '@/stores/theme';
 import { useUiStore } from '@/stores/ui';
@@ -68,10 +69,7 @@ const shortcut = computed(() =>
         </button>
 
         <div class="ml-auto flex items-center gap-1">
-            <Button variant="primary" size="sm" class="hidden sm:inline-flex">
-                <Plus class="size-4" />
-                Create
-            </Button>
+            <CreateMenu />
 
             <!-- Light / Dark / System (§39) -->
             <div

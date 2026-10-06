@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { Head, router } from '@inertiajs/vue3';
-import { Building2, MoveRight, Plus } from 'lucide-vue-next';
-import { computed, ref } from 'vue';
+import { Building2, MoveRight, Pencil, Plus, Trash2 } from 'lucide-vue-next';
+import { computed, ref, onMounted } from 'vue';
+import DealFormDrawer, {
+    type EditableDeal,
+} from '@/components/crm/DealFormDrawer.vue';
 import KanbanBoard, {
     type KanbanColumn,
 } from '@/components/data/KanbanBoard.vue';
@@ -22,6 +25,11 @@ type DealCard = {
     owner: string | null;
     company: string | null;
     expected_close_date: string | null;
+    owner_id: number | null;
+    company_id: number | null;
+    contact_id: number | null;
+    lost_reason: string | null;
+    stage_name: string;
 };
 
 type Stage = {
@@ -42,12 +50,73 @@ const props = defineProps<{
     pipelines: SelectOption[];
     stages: Stage[];
     cardLimit: number;
+    options?: {
+        owners: SelectOption[];
+        companies: SelectOption[];
+        contacts: SelectOption[];
+        currencies: SelectOption[];
+    };
 }>();
 
 const toasts = useToastStore();
 const { can } = useAuthorization();
 
 const moving = ref(false);
+
+/** The deal the drawer is editing: null creates, undefined means closed. */
+const editing = ref<EditableDeal | null | undefined>(undefined);
+
+/**
+ * Opens the create drawer when arrived at from the global Create menu.
+ *
+ * Read once on mount and then dropped from the URL, so a refresh or a shared
+ * link does not reopen a form the person has already dealt with.
+ */
+onMounted(() => {
+    const url = new URL(window.location.href);
+
+    if (url.searchParams.get('new') === null) {
+        return;
+    }
+
+    createDeal();
+    url.searchParams.delete('new');
+    window.history.replaceState({}, '', url.toString());
+});
+
+function createDeal(): void {
+    editing.value = null;
+}
+
+function editDeal(card: DealCard): void {
+    editing.value = {
+        id: card.id,
+        title: card.title,
+        value: card.value,
+        currency: card.currency,
+        probability: card.probability,
+        expected_close_date: card.expected_close_date,
+        owner_id: card.owner_id,
+        company_id: card.company_id,
+        contact_id: card.contact_id,
+        lost_reason: card.lost_reason,
+        stage_name: card.stage_name,
+    };
+}
+
+function deleteDeal(card: DealCard): void {
+    // Names the deal and its value: a card is a small target and this is not
+    // reversible from the board (§113).
+    if (
+        !window.confirm(
+            `Delete “${card.title}” (${money(card.value)})? It can be restored later.`,
+        )
+    ) {
+        return;
+    }
+
+    router.delete(`/deals/${card.id}`, { preserveScroll: true });
+}
 
 const columns = computed<KanbanColumn<DealCard>[]>(() =>
     props.stages.map((stage) => ({
@@ -134,7 +203,12 @@ const stageOptions = computed(() =>
                     @update:model-value="switchPipeline"
                 />
             </div>
-            <Button v-if="can('deal.create')" variant="primary" size="sm">
+            <Button
+                v-if="can('deal.create')"
+                variant="primary"
+                size="sm"
+                @click="createDeal"
+            >
                 <Plus class="size-4" />
                 New deal
             </Button>
@@ -224,32 +298,67 @@ const stageOptions = computed(() =>
                         }}</span>
                     </div>
 
-                    <!--
-                      The keyboard path. Native HTML5 drag is pointer-only, so
-                      without this the board would be unusable without a mouse
-                      (§115).
-                    -->
-                    <details v-if="can('deal.update')" class="group mt-2">
-                        <summary
-                            class="flex cursor-pointer list-none items-center gap-1 text-[0.78rem] text-muted transition-colors hover:text-strong"
-                        >
-                            <MoveRight class="size-3.5" aria-hidden="true" />
-                            Move to
-                        </summary>
-                        <ul class="mt-1.5 space-y-0.5">
-                            <li v-for="stage in stageOptions" :key="stage.id">
-                                <button
-                                    type="button"
-                                    class="w-full rounded px-2 py-1 text-left text-[0.8rem] text-body transition-colors hover:bg-surface-alt disabled:opacity-40"
-                                    @click="move(stage.id)"
+                    <div class="mt-2 flex items-center gap-1">
+                        <!--
+                          The keyboard path. Native HTML5 drag is pointer-only,
+                          so without this the board would be unusable without a
+                          mouse (§115).
+                        -->
+                        <details v-if="can('deal.update')" class="group flex-1">
+                            <summary
+                                class="flex cursor-pointer list-none items-center gap-1 text-[0.78rem] text-muted transition-colors hover:text-strong"
+                            >
+                                <MoveRight
+                                    class="size-3.5"
+                                    aria-hidden="true"
+                                />
+                                Move to
+                            </summary>
+                            <ul class="mt-1.5 space-y-0.5">
+                                <li
+                                    v-for="stage in stageOptions"
+                                    :key="stage.id"
                                 >
-                                    {{ stage.name }}
-                                </button>
-                            </li>
-                        </ul>
-                    </details>
+                                    <button
+                                        type="button"
+                                        class="w-full rounded px-2 py-1 text-left text-[0.8rem] text-body transition-colors hover:bg-surface-alt disabled:opacity-40"
+                                        @click="move(stage.id)"
+                                    >
+                                        {{ stage.name }}
+                                    </button>
+                                </li>
+                            </ul>
+                        </details>
+
+                        <button
+                            v-if="can('deal.update')"
+                            type="button"
+                            class="rounded p-1 text-muted transition-colors hover:bg-surface-alt hover:text-strong"
+                            :aria-label="`Edit ${card.title}`"
+                            @click.stop="editDeal(card)"
+                        >
+                            <Pencil class="size-3.5" />
+                        </button>
+                        <button
+                            v-if="can('deal.delete')"
+                            type="button"
+                            class="rounded p-1 text-muted transition-colors hover:bg-danger-soft hover:text-danger"
+                            :aria-label="`Delete ${card.title}`"
+                            @click.stop="deleteDeal(card)"
+                        >
+                            <Trash2 class="size-3.5" />
+                        </button>
+                    </div>
                 </template>
             </KanbanBoard>
         </div>
+
+        <DealFormDrawer
+            :open="editing !== undefined"
+            :deal="editing ?? null"
+            :pipeline-id="pipeline.id"
+            :options="options"
+            @close="editing = undefined"
+        />
     </AppLayout>
 </template>

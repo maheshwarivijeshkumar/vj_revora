@@ -131,7 +131,7 @@ final class BulkLeadController extends Controller
             BulkAction::Assign => ! array_key_exists('owner_id', $validated),
             BulkAction::ChangeStatus => ($validated['status'] ?? null) === null,
             BulkAction::AddTag, BulkAction::RemoveTag => ($validated['tag'] ?? null) === null,
-            BulkAction::Delete => false,
+            BulkAction::Verify, BulkAction::Delete => false,
         };
 
         if (! $missing) {

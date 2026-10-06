@@ -145,6 +145,16 @@ final class ContactController extends Controller
             'companies_count' => $contact->companies->count(),
             'owner' => $contact->owner?->name,
             'created_at' => $contact->created_at?->toIso8601String(),
+
+            // The fields the edit form needs, carried on the row so opening the
+            // drawer does not cost a second request for a record the table
+            // already delivered.
+            'first_name' => $contact->first_name,
+            'last_name' => $contact->last_name,
+            'country' => $contact->country,
+            'owner_id' => $contact->owner_id,
+            'company_id' => $primary?->id,
+            'company_role' => $primary?->pivot?->role,
         ];
     }
 }

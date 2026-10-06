@@ -139,9 +139,14 @@ final class CompanyController extends Controller
             'industry' => $company->industry,
             'size' => $company->size,
             'country' => $company->country,
+            // Carried even though no column displays it, because the edit form
+            // submits every field: a row without it would send phone = null and
+            // quietly wipe the number on the first save.
+            'phone' => $company->phone,
             'contacts_count' => $company->contacts_count,
             'deals_count' => $company->deals_count,
             'owner' => $company->owner?->name,
+            'owner_id' => $company->owner_id,
             'created_at' => $company->created_at?->toIso8601String(),
         ];
     }

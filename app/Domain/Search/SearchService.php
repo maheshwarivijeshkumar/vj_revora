@@ -80,7 +80,9 @@ final class SearchService
                 title: $lead->displayName(),
                 subtitle: $this->subtitle([$lead->company_name, $lead->email]),
                 badge: $lead->status->label(),
-                href: '/leads?search='.urlencode($lead->email ?? $lead->displayName()),
+                // Straight to the record now that there is one to open; a
+                // filtered list was the stand-in while there was not.
+                href: '/leads/'.$lead->id,
             ))
             ->all();
 

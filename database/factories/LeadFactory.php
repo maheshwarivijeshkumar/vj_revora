@@ -32,7 +32,13 @@ final class LeadFactory extends Factory
             'first_name' => $first,
             'last_name' => $last,
             'email' => fake()->unique()->safeEmail(),
-            'phone' => '+9715'.fake()->numerify('########'),
+            // A real UAE mobile prefix, not just a plausible-looking one: only
+            // 50, 52, 54, 55, 56 and 58 are assigned, so `+9715` plus random
+            // digits produced numbers that fail validation about 40% of the
+            // time — and test data that does not validate is a trap for every
+            // test written after it.
+            'phone' => '+971'.fake()->randomElement(['50', '52', '54', '55', '56', '58'])
+                .fake()->numerify('#######'),
             'company_name' => fake()->company(),
             'status' => LeadStatus::New,
             'score' => 0,

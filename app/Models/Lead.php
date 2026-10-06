@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Domain\Contact\PhoneNumber;
 use App\Domain\Leads\Enums\LeadStatus;
 use App\Domain\Leads\Enums\ScoreBand;
+use App\Domain\Leads\Enums\VerificationStatus;
 use App\Domain\Tenancy\Concerns\BelongsToTenant;
 use App\Domain\Tenancy\TenantContext;
 use App\Observers\AuditObserver;
@@ -53,6 +55,12 @@ use Illuminate\Support\Str;
  * @property CarbonInterface|null $next_follow_up_at
  * @property CarbonInterface|null $qualified_at
  * @property CarbonInterface|null $converted_at
+ * @property string|null $phone_type
+ * @property string|null $phone_country
+ * @property VerificationStatus $verification_status
+ * @property int|null $verification_confidence
+ * @property list<array{check: string, verdict: string, detail: string}>|null $verification_findings
+ * @property CarbonInterface|null $verified_at
  */
 #[ObservedBy([LeadObserver::class, AuditObserver::class])]
 final class Lead extends Model
@@ -72,6 +80,19 @@ final class Lead extends Model
     public bool $isBeingCaptured = false;
 
     protected $guarded = [];
+
+    /**
+     * Defaults the database also sets.
+     *
+     * Declared here as well so a freshly created model reports them without a
+     * refresh: "not checked yet" is a fact the record should carry from the
+     * moment it exists, not one that appears on the next read.
+     *
+     * @var array<string, mixed>
+     */
+    protected $attributes = [
+        'verification_status' => 'unverified',
+    ];
 
     protected static function booted(): void
     {
@@ -99,31 +120,23 @@ final class Lead extends Model
         $email = $this->email === null ? null : Str::lower(trim($this->email));
         $this->email_normalized = $email === '' ? null : $email;
 
-        $this->phone_normalized = self::normalisePhone($this->phone);
+        $this->phone_normalized = self::normalisePhone($this->phone, $this->country);
     }
 
     /**
      * Reduces a phone number to a comparable form.
      *
-     * Keeps a leading + and digits only. Deliberately not a full libphonenumber
-     * parse: without a reliable country for every lead, guessing a region does
-     * more harm than good. Two numbers written differently but dialling the
-     * same destination still collapse to the same string here.
+     * Delegates to libphonenumber, so `050 123 4567`, `+971 50 123 4567` and
+     * `00971501234567` all collapse to one E.164 value. The previous
+     * digits-only version could not do that: the first of those carries no
+     * country at all, so it never matched the other two and the same person
+     * entered twice stayed two leads (§18).
+     *
+     * The lead's own country is the parsing hint where it is known.
      */
-    public static function normalisePhone(?string $phone): ?string
+    public static function normalisePhone(?string $phone, ?string $region = null): ?string
     {
-        if ($phone === null || trim($phone) === '') {
-            return null;
-        }
-
-        $trimmed = trim($phone);
-        $digits = preg_replace('/\D+/', '', $trimmed) ?? '';
-
-        if ($digits === '') {
-            return null;
-        }
-
-        return str_starts_with($trimmed, '+') ? '+'.$digits : $digits;
+        return PhoneNumber::normalise($phone, $region);
     }
 
     /** Keeps `full_name` consistent with its parts, without discarding it. */
@@ -219,6 +232,19 @@ final class Lead extends Model
     // --- Scopes -------------------------------------------------------------
 
     /**
+     * Leads worth spending effort on.
+     *
+     * Excludes only what cannot be reached at all; a risky lead is still a
+     * lead, and silently hiding it would lose real buyers (§18).
+     *
+     * @param  Builder<Lead>  $query
+     */
+    public function scopeWorkable(Builder $query): void
+    {
+        $query->whereNot('verification_status', VerificationStatus::Invalid->value);
+    }
+
+    /**
      * Excludes duplicates that were merged away.
      *
      * Almost every list and count wants this: a merged lead still exists so
@@ -263,6 +289,9 @@ final class Lead extends Model
             'next_follow_up_at' => 'datetime',
             'qualified_at' => 'datetime',
             'converted_at' => 'datetime',
+            'verification_status' => VerificationStatus::class,
+            'verification_findings' => 'array',
+            'verified_at' => 'datetime',
         ];
     }
 }

@@ -7,11 +7,23 @@ namespace App\Models;
 use App\Domain\Tenancy\Concerns\BelongsToTenant;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 
 /**
  * Something that happened to a lead (§86).
  *
  * Append-only: the timeline is evidence, so entries are never edited.
+ *
+ * @property int $id
+ * @property int $tenant_id
+ * @property int $lead_id
+ * @property string $type
+ * @property string|null $provider
+ * @property string|null $provider_event_id
+ * @property array<string, mixed>|null $payload
+ * @property int|null $user_id
+ * @property Carbon $occurred_at
+ * @property Carbon|null $created_at
  */
 final class LeadEvent extends Model
 {
@@ -23,6 +35,8 @@ final class LeadEvent extends Model
     public const CAPTURED = 'lead.captured';
 
     public const SCORED = 'lead.scored';
+
+    public const VERIFIED = 'lead.verified';
 
     public const ASSIGNED = 'lead.assigned';
 

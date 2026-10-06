@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { Head, router } from '@inertiajs/vue3';
-import { Building2, Mail, Phone, Plus } from 'lucide-vue-next';
-import { computed, ref, watch } from 'vue';
+import { Building2, Mail, Pencil, Phone, Plus, Trash2 } from 'lucide-vue-next';
+import { computed, ref, watch, onMounted } from 'vue';
+import ContactFormDrawer, {
+    type EditableContact,
+} from '@/components/crm/ContactFormDrawer.vue';
 import DataTable, {
     type Column,
     type Density,
@@ -18,6 +21,12 @@ type ContactRow = {
     id: number;
     uuid: string;
     name: string;
+    first_name: string | null;
+    last_name: string | null;
+    country: string | null;
+    owner_id: number | null;
+    company_id: number | null;
+    company_role: string | null;
     email: string | null;
     phone: string | null;
     job_title: string | null;
@@ -52,6 +61,56 @@ const props = defineProps<{
 }>();
 
 const { can } = useAuthorization();
+
+/** The record the drawer is editing: null creates, undefined means closed. */
+const editing = ref<EditableContact | null | undefined>(undefined);
+
+/**
+ * Opens the create drawer when arrived at from the global Create menu.
+ *
+ * Read once on mount and then dropped from the URL, so a refresh or a shared
+ * link does not reopen a form the person has already dealt with.
+ */
+onMounted(() => {
+    const url = new URL(window.location.href);
+
+    if (url.searchParams.get('new') === null) {
+        return;
+    }
+
+    createContact();
+    url.searchParams.delete('new');
+    window.history.replaceState({}, '', url.toString());
+});
+
+function createContact(): void {
+    editing.value = null;
+}
+
+function editContact(row: ContactRow): void {
+    editing.value = {
+        id: row.id,
+        first_name: row.first_name,
+        last_name: row.last_name,
+        email: row.email,
+        phone: row.phone,
+        job_title: row.job_title,
+        country: row.country,
+        owner_id: row.owner_id,
+        company_id: row.company_id,
+        company_role: row.company_role,
+    };
+}
+
+function deleteContact(row: ContactRow): void {
+    // Names the record: a delete fired from a row of icons is easy to aim at
+    // the wrong one (§113).
+    if (!window.confirm(`Delete ${row.name}? It can be restored later.`)) {
+        return;
+    }
+
+    router.delete(`/contacts/${row.id}`, { preserveScroll: true });
+}
 
 const selected = ref<(number | string)[]>([]);
 const density = ref<Density>('default');
@@ -141,7 +200,12 @@ function formatDate(value: string | null): string {
 
     <AppLayout title="Contacts" :breadcrumbs="[{ label: 'Contacts' }]">
         <template #actions>
-            <Button v-if="can('contact.create')" variant="primary" size="sm">
+            <Button
+                v-if="can('contact.create')"
+                variant="primary"
+                size="sm"
+                @click="createContact"
+            >
                 <Plus class="size-4" />
                 New contact
             </Button>
@@ -294,6 +358,29 @@ function formatDate(value: string | null): string {
                     {{ formatDate(row.created_at) }}
                 </template>
 
+                <template #actions="{ row }">
+                    <div class="flex items-center justify-end gap-0.5">
+                        <button
+                            v-if="can('contact.update')"
+                            type="button"
+                            class="rounded-md p-1.5 text-muted transition-colors hover:bg-surface-alt hover:text-strong"
+                            :aria-label="`Edit ${row.name}`"
+                            @click="editContact(row)"
+                        >
+                            <Pencil class="size-4" />
+                        </button>
+                        <button
+                            v-if="can('contact.delete')"
+                            type="button"
+                            class="rounded-md p-1.5 text-muted transition-colors hover:bg-danger-soft hover:text-danger"
+                            :aria-label="`Delete ${row.name}`"
+                            @click="deleteContact(row)"
+                        >
+                            <Trash2 class="size-4" />
+                        </button>
+                    </div>
+                </template>
+
                 <template #empty>
                     <EmptyState
                         :title="
@@ -322,6 +409,14 @@ function formatDate(value: string | null): string {
                             >
                                 Clear filters
                             </Button>
+                            <Button
+                                v-else-if="can('contact.create')"
+                                variant="primary"
+                                size="sm"
+                                @click="createContact"
+                            >
+                                Create the first contact
+                            </Button>
                         </template>
                     </EmptyState>
                 </template>
@@ -341,5 +436,12 @@ function formatDate(value: string | null): string {
                 @per-page="(size) => navigate({ per_page: size })"
             />
         </div>
+
+        <ContactFormDrawer
+            :open="editing !== undefined"
+            :contact="editing ?? null"
+            :options="options"
+            @close="editing = undefined"
+        />
     </AppLayout>
 </template>

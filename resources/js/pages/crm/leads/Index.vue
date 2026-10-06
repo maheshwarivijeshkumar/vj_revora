@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Head, router, usePage } from '@inertiajs/vue3';
+import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import {
     ArrowRightLeft,
     Download,
@@ -11,7 +11,10 @@ import {
     Trash2,
     UserRoundCog,
 } from 'lucide-vue-next';
-import { computed, onUnmounted, ref, watch } from 'vue';
+import { computed, onUnmounted, ref, watch, onMounted } from 'vue';
+import LeadFormDrawer, {
+    type EditableLead,
+} from '@/components/crm/LeadFormDrawer.vue';
 import BulkActionBar from '@/components/data/BulkActionBar.vue';
 import DataTable, {
     type Column,
@@ -36,10 +39,24 @@ type LeadRow = {
     email: string | null;
     phone: string | null;
     company: string | null;
+    first_name: string | null;
+    last_name: string | null;
+    company_name: string | null;
+    job_title: string | null;
+    website: string | null;
+    country: string | null;
+    owner_id: number | null;
+    lead_source_id: number | null;
+    consent: boolean;
     status: string;
     status_label: string;
     status_tone: string;
     score: number;
+    verification: string;
+    verification_label: string;
+    verification_tone: string;
+    verification_confidence: number | null;
+    verification_problems: string[];
     owner: string | null;
     source: string | null;
     source_authorized: boolean;
@@ -65,6 +82,7 @@ const props = defineProps<{
         status: string[];
         owner_id: string[];
         source_id: string[];
+        verification: string[];
         score_min: number | null;
         score_max: number | null;
         sort: string;
@@ -73,6 +91,7 @@ const props = defineProps<{
     };
     options?: {
         statuses: { value: string; label: string; tone: string }[];
+        verificationStatuses: { value: string; label: string; tone: string }[];
         owners: SelectOption[];
         sources: SelectOption[];
     };
@@ -82,6 +101,64 @@ const props = defineProps<{
 const page = usePage();
 const toasts = useToastStore();
 const { can } = useAuthorization();
+
+/** The record the drawer is editing: null creates, undefined means closed. */
+const editing = ref<EditableLead | null | undefined>(undefined);
+
+/**
+ * Opens the create drawer when arrived at from the global Create menu.
+ *
+ * Read once on mount and then dropped from the URL, so a refresh or a shared
+ * link does not reopen a form the person has already dealt with.
+ */
+onMounted(() => {
+    const url = new URL(window.location.href);
+
+    if (url.searchParams.get('new') === null) {
+        return;
+    }
+
+    createLead();
+    url.searchParams.delete('new');
+    window.history.replaceState({}, '', url.toString());
+});
+
+function createLead(): void {
+    editing.value = null;
+}
+
+/**
+ * The row already carries every field the form edits, so the drawer opens on
+ * the data in hand rather than fetching one record the table just delivered.
+ */
+function editLead(row: LeadRow): void {
+    editing.value = {
+        id: row.id,
+        first_name: row.first_name,
+        last_name: row.last_name,
+        email: row.email,
+        phone: row.phone,
+        company_name: row.company,
+        job_title: row.job_title,
+        website: row.website,
+        country: row.country,
+        status: row.status,
+        owner_id: row.owner_id,
+        lead_source_id: row.lead_source_id,
+        next_follow_up_at: row.next_follow_up_at,
+        consent: row.consent,
+    };
+}
+
+function deleteLead(row: LeadRow): void {
+    // Names the record, because a delete triggered from a row of icons is easy
+    // to fire at the wrong one (§113).
+    if (!window.confirm(`Delete ${row.name}? It can be restored later.`)) {
+        return;
+    }
+
+    router.delete(`/leads/${row.id}`, { preserveScroll: true });
+}
 
 /** Which bulk form is open, if any. */
 const bulkAction = ref<'assign' | 'change_status' | 'add_tag' | null>(null);
@@ -127,6 +204,12 @@ const columns: Column<LeadRow>[] = [
         numeric: true,
         width: '7rem',
     },
+    {
+        key: 'verification',
+        label: 'Details',
+        sortable: true,
+        width: '9rem',
+    },
     { key: 'owner', label: 'Assigned to', secondary: true },
     {
         key: 'last_activity_at',
@@ -149,6 +232,7 @@ const visible = ref<string[]>([
     'source',
     'status',
     'score',
+    'verification',
     'owner',
     'last_activity_at',
 ]);
@@ -158,6 +242,7 @@ const activeFilterCount = computed(
         props.filters.status.length +
         props.filters.owner_id.length +
         props.filters.source_id.length +
+        props.filters.verification.length +
         (props.filters.score_min !== null ? 1 : 0) +
         (props.filters.score_max !== null ? 1 : 0),
 );
@@ -179,6 +264,7 @@ function navigate(params: Record<string, unknown>, resetPage = true): void {
             status: props.filters.status,
             owner_id: props.filters.owner_id,
             source_id: props.filters.source_id,
+            verification: props.filters.verification,
             score_min: props.filters.score_min,
             score_max: props.filters.score_max,
             sort: props.filters.sort,
@@ -196,6 +282,23 @@ function navigate(params: Record<string, unknown>, resetPage = true): void {
     );
 }
 
+/**
+ * The shortcut the whole feature exists for: hide what cannot be reached.
+ *
+ * Risky is kept, because the point of flagging a role address or a free mailbox
+ * is to warn, not to bin it — and binning them would lose real buyers.
+ */
+function showWorkableOnly(): void {
+    navigate({ verification: ['valid', 'risky'] });
+}
+
+const workableOnly = computed(
+    () =>
+        props.filters.verification.length === 2 &&
+        props.filters.verification.includes('valid') &&
+        props.filters.verification.includes('risky'),
+);
+
 function onSort(key: string): void {
     const direction =
         props.filters.sort === key && props.filters.direction === 'desc'
@@ -210,6 +313,7 @@ function clearFilters(): void {
         status: [],
         owner_id: [],
         source_id: [],
+        verification: [],
         score_min: null,
         score_max: null,
     });
@@ -370,13 +474,40 @@ async function checkProgress(id: string): Promise<void> {
                 <Download class="size-4" />
                 Export
             </Button>
-            <Button v-if="can('lead.create')" variant="primary" size="sm">
+            <Button
+                v-if="can('lead.create')"
+                variant="primary"
+                size="sm"
+                @click="createLead"
+            >
                 <Plus class="size-4" />
                 New lead
             </Button>
         </template>
 
         <div class="space-y-3">
+            <div class="flex flex-wrap items-center gap-2">
+                <Button
+                    :variant="workableOnly ? 'brand' : 'secondary'"
+                    size="sm"
+                    @click="
+                        workableOnly
+                            ? navigate({ verification: [] })
+                            : showWorkableOnly()
+                    "
+                >
+                    <ShieldCheck class="size-4" />
+                    {{
+                        workableOnly
+                            ? 'Showing reachable only'
+                            : 'Reachable only'
+                    }}
+                </Button>
+                <p class="text-[0.82rem] text-muted">
+                    Hides leads whose email or phone cannot be used.
+                </p>
+            </div>
+
             <DataTableToolbar
                 :search="filters.search"
                 placeholder="Search name, email, phone, company…"
@@ -460,6 +591,31 @@ async function checkProgress(id: string): Promise<void> {
                         />
                     </label>
 
+                    <label class="block">
+                        <span
+                            class="mb-1.5 block text-[0.82rem] font-medium text-strong"
+                        >
+                            Details
+                        </span>
+                        <SelectMenu
+                            id="filter-verification"
+                            :model-value="filters.verification[0] ?? ''"
+                            :options="[
+                                { value: '', label: 'Any' },
+                                ...options.verificationStatuses.map((v) => ({
+                                    value: v.value,
+                                    label: v.label,
+                                })),
+                            ]"
+                            @update:model-value="
+                                (value) =>
+                                    navigate({
+                                        verification: value ? [value] : [],
+                                    })
+                            "
+                        />
+                    </label>
+
                     <div class="flex items-end">
                         <Button
                             variant="ghost"
@@ -517,6 +673,14 @@ async function checkProgress(id: string): Promise<void> {
                     </Button>
                     <!-- The exact count, because a destructive action must
                          say what it will affect (§113). -->
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        @click="submitBulk('verify')"
+                    >
+                        <ShieldCheck class="size-4" />
+                        Check details
+                    </Button>
                     <Button
                         v-if="can('lead.delete')"
                         variant="ghost"
@@ -655,9 +819,12 @@ async function checkProgress(id: string): Promise<void> {
             >
                 <template #cell:name="{ row }">
                     <div class="min-w-0">
-                        <p class="truncate font-medium text-strong">
+                        <Link
+                            :href="`/leads/${row.id}`"
+                            class="block truncate font-medium text-strong hover:text-primary-600"
+                        >
                             {{ row.name }}
-                        </p>
+                        </Link>
                         <p
                             v-if="row.email"
                             class="truncate text-[0.82rem] text-muted"
@@ -696,6 +863,23 @@ async function checkProgress(id: string): Promise<void> {
                     <ScoreBadge :score="row.score" />
                 </template>
 
+                <template #cell:verification="{ row }">
+                    <!-- The reasons are on the row, so the explanation costs no
+                         request. §59: a flag nobody can explain gets ignored. -->
+                    <span
+                        :title="
+                            row.verification_problems.length
+                                ? row.verification_problems.join('\n')
+                                : undefined
+                        "
+                    >
+                        <StatusBadge
+                            :tone="row.verification_tone as never"
+                            :label="row.verification_label"
+                        />
+                    </span>
+                </template>
+
                 <template #cell:last_activity_at="{ row }">
                     {{ formatDate(row.last_activity_at) }}
                 </template>
@@ -708,22 +892,32 @@ async function checkProgress(id: string): Promise<void> {
                     {{ formatDate(row.created_at) }}
                 </template>
 
-                <template #actions>
+                <template #actions="{ row }">
                     <div class="flex items-center justify-end gap-0.5">
-                        <button
-                            type="button"
+                        <Link
+                            :href="`/leads/${row.id}`"
                             class="rounded-md p-1.5 text-muted transition-colors hover:bg-surface-alt hover:text-strong"
-                            aria-label="View lead"
+                            :aria-label="`Open ${row.name}`"
                         >
                             <Eye class="size-4" />
-                        </button>
+                        </Link>
                         <button
                             v-if="can('lead.update')"
                             type="button"
                             class="rounded-md p-1.5 text-muted transition-colors hover:bg-surface-alt hover:text-strong"
-                            aria-label="Edit lead"
+                            :aria-label="`Edit ${row.name}`"
+                            @click="editLead(row)"
                         >
                             <Pencil class="size-4" />
+                        </button>
+                        <button
+                            v-if="can('lead.delete')"
+                            type="button"
+                            class="rounded-md p-1.5 text-muted transition-colors hover:bg-danger-soft hover:text-danger"
+                            :aria-label="`Delete ${row.name}`"
+                            @click="deleteLead(row)"
+                        >
+                            <Trash2 class="size-4" />
                         </button>
                     </div>
                 </template>
@@ -736,9 +930,11 @@ async function checkProgress(id: string): Promise<void> {
                                 : 'No leads yet'
                         "
                         :description="
-                            filters.search || activeFilterCount
-                                ? 'Try a different search term, or clear the filters.'
-                                : 'Connect a lead source or create your first lead.'
+                            workableOnly
+                                ? 'Every lead here has an email or phone that cannot be used. Clear the filter to see them and fix the details.'
+                                : filters.search || activeFilterCount
+                                  ? 'Try a different search term, or clear the filters.'
+                                  : 'Connect a lead source or create your first lead.'
                         "
                     >
                         <template #actions>
@@ -757,14 +953,14 @@ async function checkProgress(id: string): Promise<void> {
                             >
                                 Clear filters
                             </Button>
-                            <template v-else>
-                                <Button variant="primary" size="sm"
-                                    >Connect a source</Button
-                                >
-                                <Button variant="secondary" size="sm"
-                                    >Create lead</Button
-                                >
-                            </template>
+                            <Button
+                                v-else-if="can('lead.create')"
+                                variant="primary"
+                                size="sm"
+                                @click="createLead"
+                            >
+                                Create the first lead
+                            </Button>
                         </template>
                     </EmptyState>
                 </template>
@@ -784,5 +980,12 @@ async function checkProgress(id: string): Promise<void> {
                 @per-page="(size) => navigate({ per_page: size })"
             />
         </div>
+
+        <LeadFormDrawer
+            :open="editing !== undefined"
+            :lead="editing ?? null"
+            :options="options"
+            @close="editing = undefined"
+        />
     </AppLayout>
 </template>

@@ -264,7 +264,9 @@ it('returns a link, a subtitle and a status for each hit', function (): void {
     expect($hit['title'])->toBe('Amara Okafor')
         ->and($hit['subtitle'])->toBe('Acme · amara@acme.example')
         ->and($hit['badge'])->toBe('Qualified')
-        ->and($hit['href'])->toStartWith('/leads?search=');
+        // Straight to the record: a filtered list was the stand-in while
+        // there was no detail screen to open.
+        ->and($hit['href'])->toBe('/leads/'.Lead::sole()->id);
 });
 
 it('echoes the term back so a stale response can be discarded', function (): void {

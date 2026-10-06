@@ -55,7 +55,7 @@ final class Contact extends Model
         self::saving(function (self $contact): void {
             $email = $contact->email === null ? null : Str::lower(trim($contact->email));
             $contact->email_normalized = $email === '' ? null : $email;
-            $contact->phone_normalized = Lead::normalisePhone($contact->phone);
+            $contact->phone_normalized = Lead::normalisePhone($contact->phone, $contact->country);
 
             $composed = trim(implode(' ', array_filter([$contact->first_name, $contact->last_name])));
 

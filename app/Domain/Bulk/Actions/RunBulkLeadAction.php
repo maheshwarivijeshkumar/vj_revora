@@ -9,6 +9,7 @@ use App\Domain\Audit\Enums\AuditAction;
 use App\Domain\Bulk\Enums\BulkAction;
 use App\Domain\Bulk\Enums\BulkStatus;
 use App\Domain\Leads\Enums\LeadStatus;
+use App\Domain\Leads\Services\LeadVerifier;
 use App\Models\BulkOperation;
 use App\Models\Lead;
 use App\Models\Tag;
@@ -34,6 +35,7 @@ final class RunBulkLeadAction
 {
     public function __construct(
         private readonly AuditRecorder $audit,
+        private readonly LeadVerifier $verifier,
     ) {}
 
     public function handle(BulkOperation $operation): BulkOperation
@@ -120,6 +122,10 @@ final class RunBulkLeadAction
             BulkAction::ChangeStatus => $this->changeStatus($lead, $operation),
             BulkAction::AddTag => $this->tag($lead, $this->required($tag), attach: true),
             BulkAction::RemoveTag => $this->tag($lead, $this->required($tag), attach: false),
+            // With the DNS lookup on: a bulk check is deliberate, runs on a
+            // queue above 200 records, and is the one place the latency is
+            // worth paying for.
+            BulkAction::Verify => $this->verifier->apply($lead, checkMx: true),
             BulkAction::Delete => $lead->delete(),
         };
     }
