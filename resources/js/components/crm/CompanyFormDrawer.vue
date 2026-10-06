@@ -3,10 +3,18 @@ import { router, useForm } from '@inertiajs/vue3';
 import { computed, watch } from 'vue';
 import Drawer from '@/components/overlay/Drawer.vue';
 import Button from '@/components/ui/Button.vue';
+import FormErrorSummary from '@/components/ui/FormErrorSummary.vue';
 import FormField from '@/components/ui/FormField.vue';
 import SelectMenu, { type SelectOption } from '@/components/ui/SelectMenu.vue';
 import TextInput from '@/components/ui/TextInput.vue';
-import { maxLength, required, useFormValidation } from '@/lib/validation';
+import {
+    countryCode,
+    maxLength,
+    phone as phoneRule,
+    required,
+    url as urlRule,
+    useFormValidation,
+} from '@/lib/validation';
 
 export type EditableCompany = {
     id: number;
@@ -41,10 +49,46 @@ const form = useForm({
     owner_id: '',
 });
 
-const { errors, touch, revalidate, validate, reset } = useFormValidation(form, {
-    name: [required('Company name'), maxLength(255, 'Company name')],
-    industry: [maxLength(120, 'Industry')],
-});
+const {
+    errors,
+    summary,
+    touch,
+    revalidate,
+    validateAndFocus,
+    isSettled,
+    reset,
+} = useFormValidation(
+    form,
+    {
+        name: [required('Company name'), maxLength(255, 'Company name')],
+        website: [urlRule()],
+        industry: [maxLength(120, 'Industry')],
+        country: [countryCode()],
+        phone: [phoneRule()],
+    },
+    {
+        labels: {
+            name: 'Company name',
+            website: 'Website',
+            domain: 'Domain',
+            industry: 'Industry',
+            size: 'Size',
+            country: 'Country',
+            phone: 'Phone',
+            owner_id: 'Owner',
+        },
+        ids: {
+            name: 'company-name',
+            website: 'company-website',
+            domain: 'company-domain',
+            industry: 'company-industry',
+            size: 'company-size',
+            country: 'company-country',
+            phone: 'company-phone',
+            owner_id: 'company-owner',
+        },
+    },
+);
 
 const ownerOptions = computed<SelectOption[]>(() => [
     { value: '', label: 'Nobody yet' },
@@ -99,7 +143,7 @@ watch(
 );
 
 function submit(): void {
-    if (!validate()) {
+    if (!validateAndFocus()) {
         return;
     }
 
@@ -132,6 +176,8 @@ function submit(): void {
         @close="emit('close')"
     >
         <form id="company-form" novalidate @submit.prevent="submit">
+            <FormErrorSummary :errors="summary" class="mb-4" />
+
             <FormField
                 id="company-name"
                 label="Company name"
@@ -144,6 +190,7 @@ function submit(): void {
                     autocomplete="organization"
                     required
                     :invalid="Boolean(errors.name)"
+                    :settled="isSettled('name')"
                     @blur="touch('name')"
                     @update:model-value="revalidate('name')"
                 />
@@ -162,7 +209,11 @@ function submit(): void {
                         v-model="form.website"
                         type="url"
                         placeholder="https://northwind.example"
+                        hint
                         :invalid="Boolean(errors.website)"
+                        :settled="isSettled('website')"
+                        @blur="touch('website')"
+                        @update:model-value="revalidate('website')"
                     />
                 </FormField>
 
@@ -192,6 +243,7 @@ function submit(): void {
                         v-model="form.industry"
                         placeholder="Logistics"
                         :invalid="Boolean(errors.industry)"
+                        :settled="isSettled('industry')"
                         @blur="touch('industry')"
                         @update:model-value="revalidate('industry')"
                     />
@@ -223,7 +275,11 @@ function submit(): void {
                         v-model="form.country"
                         autocomplete="country"
                         placeholder="AE"
+                        hint
                         :invalid="Boolean(errors.country)"
+                        :settled="isSettled('country')"
+                        @blur="touch('country')"
+                        @update:model-value="revalidate('country')"
                     />
                 </FormField>
 
@@ -239,6 +295,9 @@ function submit(): void {
                         type="tel"
                         placeholder="+971 4 123 4567"
                         :invalid="Boolean(errors.phone)"
+                        :settled="isSettled('phone')"
+                        @blur="touch('phone')"
+                        @update:model-value="revalidate('phone')"
                     />
                 </FormField>
             </div>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Check, ChevronDown, Search, X } from 'lucide-vue-next';
+import { Check, ChevronDown, CircleAlert, Search, X } from 'lucide-vue-next';
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { cn } from '@/lib/utils';
 
@@ -33,6 +33,8 @@ const props = withDefaults(
         required?: boolean;
         invalid?: boolean;
         disabled?: boolean;
+        /** Touched, and nothing wrong with it. Shows a quiet tick. */
+        settled?: boolean;
         hint?: boolean;
         clearable?: boolean;
         searchThreshold?: number;
@@ -43,6 +45,7 @@ const props = withDefaults(
         required: false,
         invalid: false,
         disabled: false,
+        settled: false,
         hint: false,
         clearable: false,
         searchThreshold: 7,
@@ -290,7 +293,17 @@ onBeforeUnmount(() => document.removeEventListener('pointerdown', onPointerDown)
                 <X class="size-3.5" />
             </span>
 
-            <ChevronDown
+            <CircleAlert
+            v-if="invalid"
+            class="size-4 shrink-0 text-danger"
+            aria-hidden="true"
+        />
+        <Check
+            v-else-if="settled"
+            class="size-4 shrink-0 text-success"
+            aria-hidden="true"
+        />
+        <ChevronDown
                 class="size-4 shrink-0 text-muted transition-transform duration-150"
                 :class="open && 'rotate-180'"
                 aria-hidden="true"

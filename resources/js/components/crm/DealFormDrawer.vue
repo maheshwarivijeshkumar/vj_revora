@@ -3,10 +3,18 @@ import { router, useForm } from '@inertiajs/vue3';
 import { computed, watch } from 'vue';
 import Drawer from '@/components/overlay/Drawer.vue';
 import Button from '@/components/ui/Button.vue';
+import FormErrorSummary from '@/components/ui/FormErrorSummary.vue';
 import FormField from '@/components/ui/FormField.vue';
 import SelectMenu, { type SelectOption } from '@/components/ui/SelectMenu.vue';
 import TextInput from '@/components/ui/TextInput.vue';
-import { maxLength, required, useFormValidation } from '@/lib/validation';
+import {
+    between,
+    date as dateRule,
+    maxLength,
+    minimum,
+    required,
+    useFormValidation,
+} from '@/lib/validation';
 
 export type EditableDeal = {
     id: number;
@@ -52,10 +60,49 @@ const form = useForm({
     lost_reason: '',
 });
 
-const { errors, touch, revalidate, validate, reset } = useFormValidation(form, {
-    title: [required('Deal name'), maxLength(255, 'Deal name')],
-    lost_reason: [maxLength(255, 'Reason')],
-});
+const {
+    errors,
+    summary,
+    touch,
+    revalidate,
+    validateAndFocus,
+    isSettled,
+    reset,
+} = useFormValidation(
+    form,
+    {
+        title: [required('Deal name'), maxLength(255, 'Deal name')],
+        value: [minimum(0, 'Value')],
+        currency: [required('Currency')],
+        probability: [between(0, 100, 'Probability')],
+        expected_close_date: [dateRule()],
+        lost_reason: [maxLength(255, 'Reason')],
+    },
+    {
+        labels: {
+            title: 'Deal name',
+            value: 'Value',
+            currency: 'Currency',
+            probability: 'Probability',
+            expected_close_date: 'Expected close',
+            owner_id: 'Owner',
+            company_id: 'Company',
+            contact_id: 'Main contact',
+            lost_reason: 'Reason it was lost',
+        },
+        ids: {
+            title: 'deal-title',
+            value: 'deal-value',
+            currency: 'deal-currency',
+            probability: 'deal-probability',
+            expected_close_date: 'deal-close-date',
+            owner_id: 'deal-owner',
+            company_id: 'deal-company',
+            contact_id: 'deal-contact',
+            lost_reason: 'deal-lost-reason',
+        },
+    },
+);
 
 function withEmpty(label: string, options?: SelectOption[]): SelectOption[] {
     return [{ value: '', label }, ...(options ?? [])];
@@ -111,7 +158,7 @@ watch(
 );
 
 function submit(): void {
-    if (!validate()) {
+    if (!validateAndFocus()) {
         return;
     }
 
@@ -144,6 +191,8 @@ function submit(): void {
         @close="emit('close')"
     >
         <form id="deal-form" novalidate @submit.prevent="submit">
+            <FormErrorSummary :errors="summary" class="mb-4" />
+
             <FormField
                 id="deal-title"
                 label="Deal name"
@@ -157,6 +206,7 @@ function submit(): void {
                     placeholder="Northwind annual renewal"
                     required
                     :invalid="Boolean(errors.title)"
+                    :settled="isSettled('title')"
                     @blur="touch('title')"
                     @update:model-value="revalidate('title')"
                 />
@@ -177,6 +227,9 @@ function submit(): void {
                             type="number"
                             placeholder="25000"
                             :invalid="Boolean(errors.value)"
+                            :settled="isSettled('value')"
+                            @blur="touch('value')"
+                            @update:model-value="revalidate('value')"
                         />
                     </FormField>
                 </div>
@@ -193,6 +246,8 @@ function submit(): void {
                         :options="currencyOptions"
                         required
                         :invalid="Boolean(errors.currency)"
+                        :settled="isSettled('currency')"
+                        @update:model-value="revalidate('currency')"
                     />
                 </FormField>
             </div>
@@ -209,6 +264,9 @@ function submit(): void {
                         v-model="form.expected_close_date"
                         type="date"
                         :invalid="Boolean(errors.expected_close_date)"
+                        :settled="isSettled('expected_close_date')"
+                        @blur="touch('expected_close_date')"
+                        @update:model-value="revalidate('expected_close_date')"
                     />
                 </FormField>
 
@@ -225,6 +283,9 @@ function submit(): void {
                         type="number"
                         placeholder="40"
                         :invalid="Boolean(errors.probability)"
+                        :settled="isSettled('probability')"
+                        @blur="touch('probability')"
+                        @update:model-value="revalidate('probability')"
                     />
                 </FormField>
             </div>
@@ -244,6 +305,8 @@ function submit(): void {
                         v-model="form.company_id"
                         :options="companyOptions"
                         :invalid="Boolean(errors.company_id)"
+                        :settled="isSettled('company_id')"
+                        @update:model-value="revalidate('company_id')"
                     />
                 </FormField>
 
@@ -258,6 +321,8 @@ function submit(): void {
                         v-model="form.contact_id"
                         :options="contactOptions"
                         :invalid="Boolean(errors.contact_id)"
+                        :settled="isSettled('contact_id')"
+                        @update:model-value="revalidate('contact_id')"
                     />
                 </FormField>
 
@@ -272,6 +337,8 @@ function submit(): void {
                         v-model="form.owner_id"
                         :options="ownerOptions"
                         :invalid="Boolean(errors.owner_id)"
+                        :settled="isSettled('owner_id')"
+                        @update:model-value="revalidate('owner_id')"
                     />
                 </FormField>
             </div>
@@ -303,6 +370,7 @@ function submit(): void {
                     id="deal-lost-reason"
                     v-model="form.lost_reason"
                     :invalid="Boolean(errors.lost_reason)"
+                    :settled="isSettled('lost_reason')"
                     @blur="touch('lost_reason')"
                     @update:model-value="revalidate('lost_reason')"
                 />

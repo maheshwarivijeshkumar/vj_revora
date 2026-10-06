@@ -56,7 +56,7 @@ onMounted(() => {
 function submit(): void {
     // Stop on client-side failure so the error is visible immediately; the
     // server still validates everything on arrival.
-    if (!v.validate()) {
+    if (!v.validateAndFocus()) {
         return;
     }
 

@@ -99,7 +99,7 @@ const v = useFormValidation(form, {
 function submit(): void {
     // Stop here on client-side failure so the invalid state is visible
     // immediately, but the server still validates everything on arrival.
-    if (!v.validate()) {
+    if (!v.validateAndFocus()) {
         document
             .querySelector('[aria-invalid="true"]')
             ?.scrollIntoView({ behavior: 'smooth', block: 'center' });

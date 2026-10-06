@@ -27,7 +27,7 @@ const v = useFormValidation(form, {
 function submit(): void {
     // Client-side checks catch empty fields without a round-trip. Credentials
     // themselves are only ever verified server-side (§42, §101.16).
-    if (!v.validate()) {
+    if (!v.validateAndFocus()) {
         return;
     }
 

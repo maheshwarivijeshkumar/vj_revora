@@ -349,37 +349,37 @@ provisioning job in 1.2.
 - **Lead detail screen — done.** `/leads/{lead}`, with five tabs and the right
   rail §44 asks for. 19 tests.
 
-  - **Only tabs with something behind them.** §44 also lists conversations,
-    emails, WhatsApp, tasks, appointments, notes and documents; those arrive
-    with the modules that produce them. An empty tab implies a feature exists,
-    which is worse than its absence (§124).
-  - **The score is explained, not just stated** — the matched rules and their
-    points, from the stored `LeadScore`. §19's whole point is that a rep who
-    cannot see why a lead scored 82 will ignore the number.
-  - **Verification findings in words**, each one something that can be acted on
-    (§59). "Needs a look" with no reason cannot be corrected.
-  - **The timeline is built from `lead_events`**, newest first, each entry
-    expandable to its payload. An unlabelled event type degrades to a readable
-    form rather than vanishing, because providers may add their own and a gap in
-    the timeline is worse than an unpolished line in it.
-  - **Provenance is visible** (§2): source, type, and an "authorized provider"
-    marker, plus UTM parameters and the write-once first touch (§34).
-  - **A merged lead announces that it is a tombstone**, with a link to the
-    record it now lives under — otherwise someone works a person who moved.
-    A master says how many submissions its history is combined from.
-  - The audit tab is deferred: least-opened tab, most expensive query.
-  - Click-to-call dials the stored E.164 form, so the link works from any
-    country, while still showing the number as it was typed.
+    - **Only tabs with something behind them.** §44 also lists conversations,
+      emails, WhatsApp, tasks, appointments, notes and documents; those arrive
+      with the modules that produce them. An empty tab implies a feature exists,
+      which is worse than its absence (§124).
+    - **The score is explained, not just stated** — the matched rules and their
+      points, from the stored `LeadScore`. §19's whole point is that a rep who
+      cannot see why a lead scored 82 will ignore the number.
+    - **Verification findings in words**, each one something that can be acted on
+      (§59). "Needs a look" with no reason cannot be corrected.
+    - **The timeline is built from `lead_events`**, newest first, each entry
+      expandable to its payload. An unlabelled event type degrades to a readable
+      form rather than vanishing, because providers may add their own and a gap in
+      the timeline is worse than an unpolished line in it.
+    - **Provenance is visible** (§2): source, type, and an "authorized provider"
+      marker, plus UTM parameters and the write-once first touch (§34).
+    - **A merged lead announces that it is a tombstone**, with a link to the
+      record it now lives under — otherwise someone works a person who moved.
+      A master says how many submissions its history is combined from.
+    - The audit tab is deferred: least-opened tab, most expensive query.
+    - Click-to-call dials the stored E.164 form, so the link works from any
+      country, while still showing the number as it was typed.
 
-  Three things this surfaced. `LeadEvent` had no `casts()`, so `occurred_at`
-  came back as a string — the timeline would have been sorting and formatting
-  text. The command palette's lead hits pointed at a filtered list, which was
-  the stand-in while there was no record to open, and now go straight to it.
-  And **`LeadFactory` was generating invalid phone numbers**: `+9715` plus
-  random digits produces prefixes like 51, 53 and 57, none of which the UAE
-  assigns, so roughly 40% of factory leads failed validation. Fixed in both
-  factories — test data that does not validate is a trap for every test written
-  after it.
+    Three things this surfaced. `LeadEvent` had no `casts()`, so `occurred_at`
+    came back as a string — the timeline would have been sorting and formatting
+    text. The command palette's lead hits pointed at a filtered list, which was
+    the stand-in while there was no record to open, and now go straight to it.
+    And **`LeadFactory` was generating invalid phone numbers**: `+9715` plus
+    random digits produces prefixes like 51, 53 and 57, none of which the UAE
+    assigns, so roughly 40% of factory leads failed validation. Fixed in both
+    factories — test data that does not validate is a trap for every test written
+    after it.
 
 Still open in Phase 1: the deal detail screen (§44), activities, tasks, notes
 and attachments (1.8 — bulk actions were a §113 concern and are done, but the

@@ -3,12 +3,15 @@ import { router, useForm } from '@inertiajs/vue3';
 import { computed, watch } from 'vue';
 import Drawer from '@/components/overlay/Drawer.vue';
 import Button from '@/components/ui/Button.vue';
+import FormErrorSummary from '@/components/ui/FormErrorSummary.vue';
 import FormField from '@/components/ui/FormField.vue';
 import SelectMenu, { type SelectOption } from '@/components/ui/SelectMenu.vue';
 import TextInput from '@/components/ui/TextInput.vue';
 import {
+    countryCode,
     email as emailRule,
     maxLength,
+    phone as phoneRule,
     useFormValidation,
 } from '@/lib/validation';
 
@@ -48,13 +51,70 @@ const form = useForm({
     company_role: '',
 });
 
-const { errors, touch, revalidate, validate, reset } = useFormValidation(form, {
-    email: [emailRule(), maxLength(255, 'Email')],
-    first_name: [maxLength(255, 'First name')],
-    last_name: [maxLength(255, 'Last name')],
-    job_title: [maxLength(255, 'Job title')],
-    company_name: [maxLength(255, 'Company')],
-});
+const {
+    errors,
+    summary,
+    touch,
+    revalidate,
+    validateAndFocus,
+    isSettled,
+    reset,
+} = useFormValidation(
+    form,
+    {
+        first_name: [maxLength(255, 'First name')],
+        last_name: [maxLength(255, 'Last name')],
+        email: [emailRule(), maxLength(255, 'Email')],
+        phone: [phoneRule()],
+        job_title: [maxLength(255, 'Job title')],
+        country: [countryCode()],
+        company_name: [maxLength(255, 'Company')],
+        company_role: [maxLength(120, 'Role')],
+    },
+    {
+        labels: {
+            first_name: 'First name',
+            last_name: 'Last name',
+            email: 'Email',
+            phone: 'Phone',
+            job_title: 'Job title',
+            country: 'Country',
+            owner_id: 'Owner',
+            company_id: 'Existing company',
+            company_name: 'New company',
+            company_role: 'Role there',
+        },
+        ids: {
+            first_name: 'contact-first-name',
+            last_name: 'contact-last-name',
+            email: 'contact-email',
+            phone: 'contact-phone',
+            job_title: 'contact-job-title',
+            country: 'contact-country',
+            owner_id: 'contact-owner',
+            company_id: 'contact-company',
+            company_name: 'contact-company-name',
+            company_role: 'contact-company-role',
+        },
+        groups: [
+            {
+                fields: ['email', 'phone'],
+                check: (f) => f.email.trim() !== '' || f.phone.trim() !== '',
+                message:
+                    'Give an email address or a phone number so this person can be reached.',
+            },
+            {
+                // The server refuses both; saying so here saves the round trip
+                // and points at the field to clear.
+                fields: ['company_name', 'company_id'],
+                check: (f) =>
+                    f.company_id === '' || f.company_name.trim() === '',
+                message:
+                    'Either choose an existing company or name a new one, not both.',
+            },
+        ],
+    },
+);
 
 const ownerOptions = computed<SelectOption[]>(() => [
     { value: '', label: 'Nobody yet' },
@@ -65,10 +125,6 @@ const companyOptions = computed<SelectOption[]>(() => [
     { value: '', label: 'No company' },
     ...(props.options?.companies ?? []),
 ]);
-
-const identifierMissing = computed(
-    () => !form.email.trim() && !form.phone.trim(),
-);
 
 /**
  * Picking an existing company and typing a new one are mutually exclusive: the
@@ -113,7 +169,7 @@ watch(
 );
 
 function submit(): void {
-    if (!validate() || identifierMissing.value) {
+    if (!validateAndFocus()) {
         return;
     }
 
@@ -146,6 +202,8 @@ function submit(): void {
         @close="emit('close')"
     >
         <form id="contact-form" novalidate @submit.prevent="submit">
+            <FormErrorSummary :errors="summary" class="mb-4" />
+
             <div class="grid gap-4 sm:grid-cols-2">
                 <FormField
                     id="contact-first-name"
@@ -157,6 +215,7 @@ function submit(): void {
                         v-model="form.first_name"
                         autocomplete="given-name"
                         :invalid="Boolean(errors.first_name)"
+                        :settled="isSettled('first_name')"
                         @blur="touch('first_name')"
                         @update:model-value="revalidate('first_name')"
                     />
@@ -172,6 +231,7 @@ function submit(): void {
                         v-model="form.last_name"
                         autocomplete="family-name"
                         :invalid="Boolean(errors.last_name)"
+                        :settled="isSettled('last_name')"
                         @blur="touch('last_name')"
                         @update:model-value="revalidate('last_name')"
                     />
@@ -180,19 +240,17 @@ function submit(): void {
                 <FormField
                     id="contact-email"
                     label="Email"
+                    hint="Either an email or a phone number is needed."
                     :error="errors.email"
-                    :hint="
-                        identifierMissing
-                            ? 'Give an email address or a phone number.'
-                            : undefined
-                    "
                 >
                     <TextInput
                         id="contact-email"
                         v-model="form.email"
                         type="email"
                         autocomplete="email"
-                        :invalid="Boolean(errors.email) || identifierMissing"
+                        hint
+                        :invalid="Boolean(errors.email)"
+                        :settled="isSettled('email')"
                         @blur="touch('email')"
                         @update:model-value="revalidate('email')"
                     />
@@ -209,7 +267,10 @@ function submit(): void {
                         type="tel"
                         autocomplete="tel"
                         placeholder="+971 50 123 4567"
-                        :invalid="identifierMissing"
+                        :invalid="Boolean(errors.phone)"
+                        :settled="isSettled('phone')"
+                        @blur="touch('phone')"
+                        @update:model-value="revalidate('phone')"
                     />
                 </FormField>
 
@@ -223,6 +284,7 @@ function submit(): void {
                         v-model="form.job_title"
                         autocomplete="organization-title"
                         :invalid="Boolean(errors.job_title)"
+                        :settled="isSettled('job_title')"
                         @blur="touch('job_title')"
                         @update:model-value="revalidate('job_title')"
                     />
@@ -240,6 +302,9 @@ function submit(): void {
                         autocomplete="country"
                         placeholder="AE"
                         :invalid="Boolean(errors.country)"
+                        :settled="isSettled('country')"
+                        @blur="touch('country')"
+                        @update:model-value="revalidate('country')"
                     />
                 </FormField>
             </div>
@@ -282,6 +347,7 @@ function submit(): void {
                             placeholder="Northwind Trading"
                             :disabled="companyChosen"
                             :invalid="Boolean(errors.company_name)"
+                            :settled="isSettled('company_name')"
                             @blur="touch('company_name')"
                             @update:model-value="revalidate('company_name')"
                         />
@@ -299,6 +365,9 @@ function submit(): void {
                             v-model="form.company_role"
                             placeholder="Procurement lead"
                             :invalid="Boolean(errors.company_role)"
+                            :settled="isSettled('company_role')"
+                            @blur="touch('company_role')"
+                            @update:model-value="revalidate('company_role')"
                         />
                     </FormField>
                 </div>
@@ -330,7 +399,6 @@ function submit(): void {
                 variant="brand"
                 size="md"
                 :loading="form.processing"
-                :disabled="identifierMissing"
             >
                 {{ isEdit ? 'Save changes' : 'Create contact' }}
             </Button>

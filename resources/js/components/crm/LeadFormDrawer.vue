@@ -4,12 +4,18 @@ import { computed, watch } from 'vue';
 import Drawer from '@/components/overlay/Drawer.vue';
 import Button from '@/components/ui/Button.vue';
 import Checkbox from '@/components/ui/Checkbox.vue';
+import FormErrorSummary from '@/components/ui/FormErrorSummary.vue';
 import FormField from '@/components/ui/FormField.vue';
 import SelectMenu, { type SelectOption } from '@/components/ui/SelectMenu.vue';
 import TextInput from '@/components/ui/TextInput.vue';
 import {
+    countryCode,
+    date as dateRule,
     email as emailRule,
     maxLength,
+    phone as phoneRule,
+    required,
+    url as urlRule,
     useFormValidation,
 } from '@/lib/validation';
 
@@ -66,13 +72,73 @@ const form = useForm({
  * Client-side checks mirror the server's, which is the only authority (§42).
  * They exist so a typo is caught before a round trip, not instead of one.
  */
-const { errors, touch, revalidate, validate, reset } = useFormValidation(form, {
-    email: [emailRule(), maxLength(255, 'Email')],
-    first_name: [maxLength(255, 'First name')],
-    last_name: [maxLength(255, 'Last name')],
-    company_name: [maxLength(255, 'Company')],
-    job_title: [maxLength(255, 'Job title')],
-});
+const {
+    errors,
+    summary,
+    touch,
+    revalidate,
+    validateAndFocus,
+    isSettled,
+    reset,
+} = useFormValidation(
+    form,
+    {
+        first_name: [maxLength(255, 'First name')],
+        last_name: [maxLength(255, 'Last name')],
+        email: [emailRule(), maxLength(255, 'Email')],
+        phone: [phoneRule()],
+        company_name: [maxLength(255, 'Company')],
+        job_title: [maxLength(255, 'Job title')],
+        website: [urlRule()],
+        country: [countryCode()],
+        status: [required('Status')],
+        next_follow_up_at: [dateRule()],
+    },
+    {
+        // Human labels for the summary: a list that says "lead_source_id"
+        // helps nobody.
+        labels: {
+            first_name: 'First name',
+            last_name: 'Last name',
+            email: 'Email',
+            phone: 'Phone',
+            company_name: 'Company',
+            job_title: 'Job title',
+            website: 'Website',
+            country: 'Country',
+            status: 'Status',
+            owner_id: 'Assigned to',
+            lead_source_id: 'Source',
+            next_follow_up_at: 'Next follow-up',
+        },
+        // Ids differ from field names because ids must be unique across the
+        // page and field names are not.
+        ids: {
+            first_name: 'lead-first-name',
+            last_name: 'lead-last-name',
+            email: 'lead-email',
+            phone: 'lead-phone',
+            company_name: 'lead-company',
+            job_title: 'lead-job-title',
+            website: 'lead-website',
+            country: 'lead-country',
+            status: 'lead-status',
+            owner_id: 'lead-owner',
+            lead_source_id: 'lead-source',
+            next_follow_up_at: 'lead-follow-up',
+        },
+        groups: [
+            {
+                // Belongs to the pair, not to either field: expressing it
+                // per-field would report it twice.
+                fields: ['email', 'phone'],
+                check: (f) => f.email.trim() !== '' || f.phone.trim() !== '',
+                message:
+                    'Give an email address or a phone number so this person can be reached.',
+            },
+        ],
+    },
+);
 
 const statusOptions = computed(() =>
     (props.options?.statuses ?? []).map((s) => ({
@@ -90,16 +156,6 @@ const sourceOptions = computed<SelectOption[]>(() => [
     { value: '', label: 'Not recorded' },
     ...(props.options?.sources ?? []),
 ]);
-
-/**
- * At least one of email or phone, checked here as well as on the server.
- *
- * The rule belongs to the pair rather than either field, so it is computed
- * rather than expressed as a per-field rule.
- */
-const identifierMissing = computed(
-    () => !form.email.trim() && !form.phone.trim(),
-);
 
 watch(
     () => props.open,
@@ -146,7 +202,10 @@ watch(
 );
 
 function submit(): void {
-    if (!validate() || identifierMissing.value) {
+    // Focused on failure: in a scrolling drawer the failing field is often
+    // off-screen, and a submit that silently does nothing is indistinguishable
+    // from a broken button (§59).
+    if (!validateAndFocus()) {
         return;
     }
 
@@ -178,7 +237,12 @@ function submit(): void {
         :busy="form.processing"
         @close="emit('close')"
     >
+        <!-- novalidate throughout: the native bubble cannot be styled, says
+             something different in every browser, vanishes as you type and
+             stops at the first field. -->
         <form id="lead-form" novalidate @submit.prevent="submit">
+            <FormErrorSummary :errors="summary" class="mb-4" />
+
             <div class="grid gap-4 sm:grid-cols-2">
                 <FormField
                     id="lead-first-name"
@@ -190,6 +254,7 @@ function submit(): void {
                         v-model="form.first_name"
                         autocomplete="given-name"
                         :invalid="Boolean(errors.first_name)"
+                        :settled="isSettled('first_name')"
                         @blur="touch('first_name')"
                         @update:model-value="revalidate('first_name')"
                     />
@@ -205,6 +270,7 @@ function submit(): void {
                         v-model="form.last_name"
                         autocomplete="family-name"
                         :invalid="Boolean(errors.last_name)"
+                        :settled="isSettled('last_name')"
                         @blur="touch('last_name')"
                         @update:model-value="revalidate('last_name')"
                     />
@@ -213,19 +279,17 @@ function submit(): void {
                 <FormField
                     id="lead-email"
                     label="Email"
+                    hint="Either an email or a phone number is needed."
                     :error="errors.email"
-                    :hint="
-                        identifierMissing
-                            ? 'Give an email address or a phone number.'
-                            : undefined
-                    "
                 >
                     <TextInput
                         id="lead-email"
                         v-model="form.email"
                         type="email"
                         autocomplete="email"
-                        :invalid="Boolean(errors.email) || identifierMissing"
+                        hint
+                        :invalid="Boolean(errors.email)"
+                        :settled="isSettled('email')"
                         @blur="touch('email')"
                         @update:model-value="revalidate('email')"
                     />
@@ -238,7 +302,10 @@ function submit(): void {
                         type="tel"
                         autocomplete="tel"
                         placeholder="+971 50 123 4567"
-                        :invalid="identifierMissing"
+                        :invalid="Boolean(errors.phone)"
+                        :settled="isSettled('phone')"
+                        @blur="touch('phone')"
+                        @update:model-value="revalidate('phone')"
                     />
                 </FormField>
 
@@ -252,6 +319,7 @@ function submit(): void {
                         v-model="form.company_name"
                         autocomplete="organization"
                         :invalid="Boolean(errors.company_name)"
+                        :settled="isSettled('company_name')"
                         @blur="touch('company_name')"
                         @update:model-value="revalidate('company_name')"
                     />
@@ -267,6 +335,7 @@ function submit(): void {
                         v-model="form.job_title"
                         autocomplete="organization-title"
                         :invalid="Boolean(errors.job_title)"
+                        :settled="isSettled('job_title')"
                         @blur="touch('job_title')"
                         @update:model-value="revalidate('job_title')"
                     />
@@ -283,6 +352,9 @@ function submit(): void {
                         type="url"
                         placeholder="https://example.com"
                         :invalid="Boolean(errors.website)"
+                        :settled="isSettled('website')"
+                        @blur="touch('website')"
+                        @update:model-value="revalidate('website')"
                     />
                 </FormField>
 
@@ -298,6 +370,9 @@ function submit(): void {
                         autocomplete="country"
                         placeholder="AE"
                         :invalid="Boolean(errors.country)"
+                        :settled="isSettled('country')"
+                        @blur="touch('country')"
+                        @update:model-value="revalidate('country')"
                     />
                 </FormField>
             </div>
@@ -359,6 +434,9 @@ function submit(): void {
                         v-model="form.next_follow_up_at"
                         type="date"
                         :invalid="Boolean(errors.next_follow_up_at)"
+                        :settled="isSettled('next_follow_up_at')"
+                        @blur="touch('next_follow_up_at')"
+                        @update:model-value="revalidate('next_follow_up_at')"
                     />
                 </FormField>
             </div>
@@ -388,7 +466,6 @@ function submit(): void {
                 variant="brand"
                 size="md"
                 :loading="form.processing"
-                :disabled="identifierMissing"
             >
                 {{ isEdit ? 'Save changes' : 'Create lead' }}
             </Button>
