@@ -1,6 +1,7 @@
 <?php
 
 use App\Console\Commands\FetchTenders;
+use App\Console\Commands\RunMessaging;
 use App\Console\Commands\SyncLeadAds;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
@@ -23,3 +24,9 @@ Schedule::command(FetchTenders::class)
     ->timezone('Asia/Karachi')
     ->withoutOverlapping()
     ->runInBackground();
+
+// Follow-up emails go out on the minute they are due (0h, 6h, 24h), and the
+// inboxes are read every five minutes so a reply stops the sequence before
+// the next email would go.
+Schedule::command(RunMessaging::class)->everyMinute()->withoutOverlapping();
+Schedule::command(RunMessaging::class, ['--mailboxes'])->everyFiveMinutes()->withoutOverlapping();

@@ -43,7 +43,7 @@ final readonly class LeadsExport implements FromQuery, ShouldAutoSize, WithHeadi
     {
         return [
             'Name', 'Email', 'Phone', 'Company', 'Job title', 'Country',
-            'Status', 'Score', 'Verification', 'Owner', 'Source',
+            'Status', 'Score', 'Reply score', 'Verification', 'Owner', 'Source',
             'Platform', 'Campaign', 'Ad', 'Form',
             'Created', 'Last activity',
         ];
@@ -67,6 +67,7 @@ final readonly class LeadsExport implements FromQuery, ShouldAutoSize, WithHeadi
             $lead->country,
             $lead->status->label(),
             $lead->score,
+            $lead->engagement_score === null ? null : $lead->engagement_score.'/10',
             $lead->verification_status->label(),
             $lead->owner?->name,
             $lead->source?->name,

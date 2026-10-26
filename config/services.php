@@ -46,6 +46,59 @@ return [
         'api_version' => env('LINKEDIN_API_VERSION', '202609'),
     ],
 
+    /*
+    | Mailbox sign-in (Settings → Email). SMTP + IMAP mailboxes need nothing
+    | here: their server details are entered per mailbox.
+    */
+
+    'google' => [
+        'client_id' => env('GOOGLE_CLIENT_ID'),
+        'client_secret' => env('GOOGLE_CLIENT_SECRET'),
+    ],
+
+    'microsoft' => [
+        'client_id' => env('MICROSOFT_CLIENT_ID'),
+        'client_secret' => env('MICROSOFT_CLIENT_SECRET'),
+        // "common" accepts work, school and personal accounts.
+        'tenant' => env('MICROSOFT_TENANT', 'common'),
+    ],
+
+    /*
+    | WhatsApp Cloud API webhook (Settings → WhatsApp). App-level, because
+    | Meta sends every number's events to the one callback URL; each
+    | workspace's own number and token are stored with that workspace.
+    */
+
+    'whatsapp' => [
+        'app_secret' => env('WHATSAPP_APP_SECRET', env('META_APP_SECRET')),
+        'verify_token' => env('WHATSAPP_VERIFY_TOKEN'),
+        'api_version' => env('WHATSAPP_GRAPH_VERSION', env('META_GRAPH_VERSION', 'v26.0')),
+    ],
+
+    /*
+    | Reply scoring: claude | openai | gemini | keywords. Without a key for
+    | the chosen provider, replies are scored by keyword rules.
+    */
+
+    'ai' => [
+        'reply_provider' => env('AI_REPLY_PROVIDER', 'keywords'),
+    ],
+
+    'anthropic' => [
+        'key' => env('ANTHROPIC_API_KEY'),
+        'model' => env('ANTHROPIC_MODEL', 'claude-opus-5-5'),
+    ],
+
+    'openai' => [
+        'key' => env('OPENAI_API_KEY'),
+        'model' => env('OPENAI_MODEL', 'gpt-4o-mini'),
+    ],
+
+    'gemini' => [
+        'key' => env('GEMINI_API_KEY'),
+        'model' => env('GEMINI_MODEL', 'gemini-2.5-flash'),
+    ],
+
     'slack' => [
         'notifications' => [
             'bot_user_oauth_token' => env('SLACK_BOT_USER_OAUTH_TOKEN'),

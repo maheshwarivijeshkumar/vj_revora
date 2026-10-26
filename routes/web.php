@@ -12,6 +12,7 @@ use App\Http\Controllers\Crm\ContactWriteController;
 use App\Http\Controllers\Crm\DealBoardController;
 use App\Http\Controllers\Crm\DealWriteController;
 use App\Http\Controllers\Crm\LeadController;
+use App\Http\Controllers\Crm\LeadConversationController;
 use App\Http\Controllers\Crm\LeadDetailController;
 use App\Http\Controllers\Crm\LeadExportController;
 use App\Http\Controllers\Crm\LeadWriteController;
@@ -22,7 +23,10 @@ use App\Http\Controllers\Marketing\WaitlistController;
 use App\Http\Controllers\SearchController;
 use App\Http\Controllers\Settings\ApiKeyController;
 use App\Http\Controllers\Settings\AuditLogController;
+use App\Http\Controllers\Settings\EmailAccountController;
+use App\Http\Controllers\Settings\FollowUpController;
 use App\Http\Controllers\Settings\WebhookController;
+use App\Http\Controllers\Settings\WhatsAppController;
 use App\Http\Controllers\Site\ComingSoonController;
 use App\Http\Controllers\Site\ManifestController;
 use App\Http\Controllers\Site\MarketingController;
@@ -208,6 +212,84 @@ Route::middleware(['auth', 'tenant.active'])->group(function (): void {
     Route::post('/deals/{deal}/move', [DealBoardController::class, 'move'])
         ->middleware('permission:deal.update')
         ->name('deals.move');
+
+    // --- Messaging ---------------------------------------------------------
+    // A lead's email and WhatsApp thread (§15, §25).
+
+    Route::get('/leads/{lead}/conversation', [LeadConversationController::class, 'show'])
+        ->middleware('permission:conversation.view')
+        ->name('leads.conversation');
+
+    Route::middleware('permission:message.send')->group(function (): void {
+        Route::post('/leads/{lead}/conversation/email', [LeadConversationController::class, 'sendEmail'])
+            ->name('leads.conversation.email');
+
+        Route::post('/leads/{lead}/conversation/whatsapp', [LeadConversationController::class, 'sendWhatsApp'])
+            ->name('leads.conversation.whatsapp');
+
+        Route::post('/leads/{lead}/follow-up/stop', [LeadConversationController::class, 'stopFollowUp'])
+            ->name('leads.follow-up.stop');
+    });
+
+    Route::get('/settings/email', [EmailAccountController::class, 'index'])
+        ->middleware('permission:integration.view')
+        ->name('settings.email');
+
+    Route::middleware('permission:integration.connect')->group(function (): void {
+        Route::post('/settings/email', [EmailAccountController::class, 'store'])
+            ->name('settings.email.store');
+
+        Route::get('/settings/email/{provider}/connect', [EmailAccountController::class, 'connect'])
+            ->whereIn('provider', ['google', 'microsoft'])
+            ->name('settings.email.connect');
+
+        // Register these exact URLs in the Google Cloud and Azure apps.
+        Route::get('/settings/email/{provider}/callback', [EmailAccountController::class, 'callback'])
+            ->whereIn('provider', ['google', 'microsoft'])
+            ->name('settings.email.callback');
+
+        Route::patch('/settings/email/accounts/{account}', [EmailAccountController::class, 'update'])
+            ->name('settings.email.update');
+
+        Route::put('/settings/whatsapp', [WhatsAppController::class, 'update'])
+            ->name('settings.whatsapp.update');
+    });
+
+    Route::post('/settings/email/accounts/{account}/sync', [EmailAccountController::class, 'sync'])
+        ->middleware('permission:integration.sync')
+        ->name('settings.email.sync');
+
+    Route::delete('/settings/email/accounts/{account}', [EmailAccountController::class, 'destroy'])
+        ->middleware('permission:integration.disconnect')
+        ->name('settings.email.destroy');
+
+    Route::get('/settings/whatsapp', [WhatsAppController::class, 'index'])
+        ->middleware('permission:integration.view')
+        ->name('settings.whatsapp');
+
+    Route::delete('/settings/whatsapp', [WhatsAppController::class, 'destroy'])
+        ->middleware('permission:integration.disconnect')
+        ->name('settings.whatsapp.destroy');
+
+    Route::get('/settings/follow-up', [FollowUpController::class, 'index'])
+        ->middleware('permission:template.view')
+        ->name('settings.follow-up');
+
+    Route::put('/settings/follow-up', [FollowUpController::class, 'updateSequence'])
+        ->middleware('permission:automation.manage')
+        ->name('settings.follow-up.update');
+
+    Route::post('/settings/templates', [FollowUpController::class, 'storeTemplate'])
+        ->middleware('permission:template.create')
+        ->name('settings.templates.store');
+
+    Route::patch('/settings/templates/{template}', [FollowUpController::class, 'updateTemplate'])
+        ->middleware('permission:template.update')
+        ->name('settings.templates.update');
+
+    Route::delete('/settings/templates/{template}', [FollowUpController::class, 'destroyTemplate'])
+        ->middleware('permission:template.delete')
+        ->name('settings.templates.destroy');
 
     // --- Integrations ------------------------------------------------------
     // Under /settings: the bare /integrations is the public marketing page.

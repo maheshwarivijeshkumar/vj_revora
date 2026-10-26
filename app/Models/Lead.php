@@ -61,6 +61,11 @@ use Illuminate\Support\Str;
  * @property int|null $verification_confidence
  * @property list<array{check: string, verdict: string, detail: string}>|null $verification_findings
  * @property CarbonInterface|null $verified_at
+ * @property int|null $engagement_score
+ * @property string|null $engagement_reason
+ * @property CarbonInterface|null $engagement_scored_at
+ * @property CarbonInterface|null $email_opted_out_at
+ * @property CarbonInterface|null $whatsapp_opted_out_at
  */
 #[ObservedBy([LeadObserver::class, AuditObserver::class])]
 final class Lead extends Model
@@ -292,6 +297,10 @@ final class Lead extends Model
             'verification_status' => VerificationStatus::class,
             'verification_findings' => 'array',
             'verified_at' => 'datetime',
+            'engagement_score' => 'integer',
+            'engagement_scored_at' => 'datetime',
+            'email_opted_out_at' => 'datetime',
+            'whatsapp_opted_out_at' => 'datetime',
         ];
     }
 }

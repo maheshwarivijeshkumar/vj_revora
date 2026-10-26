@@ -102,6 +102,9 @@ final class LeadController extends Controller
             'status_label' => $lead->status->label(),
             'status_tone' => $lead->status->tone(),
             'score' => $lead->score,
+            // Out of 10, from follow-up replies; 0 means they never answered.
+            'engagement_score' => $lead->engagement_score,
+            'engagement_reason' => $lead->engagement_reason,
             'verification' => $lead->verification_status->value,
             'verification_label' => $lead->verification_status->label(),
             'verification_tone' => $lead->verification_status->tone(),

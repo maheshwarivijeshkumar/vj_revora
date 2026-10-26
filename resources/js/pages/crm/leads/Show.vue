@@ -15,6 +15,7 @@ import {
     TriangleAlert,
 } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
+import ConversationPanel from '@/components/crm/ConversationPanel.vue';
 import LeadFormDrawer, {
     type EditableLead,
 } from '@/components/crm/LeadFormDrawer.vue';
@@ -127,7 +128,7 @@ const props = defineProps<{
 
 const { can } = useAuthorization();
 
-type Tab = 'overview' | 'timeline' | 'deals' | 'source' | 'audit';
+type Tab = 'overview' | 'messages' | 'timeline' | 'deals' | 'source' | 'audit';
 
 const tab = ref<Tab>('overview');
 const editing = ref(false);
@@ -143,6 +144,9 @@ const expandedEvent = ref<number | null>(null);
 const tabs = computed(() =>
     [
         { id: 'overview' as Tab, label: 'Overview' },
+        ...(can('conversation.view')
+            ? [{ id: 'messages' as Tab, label: 'Messages' }]
+            : []),
         { id: 'timeline' as Tab, label: `Timeline (${props.timeline.length})` },
         { id: 'deals' as Tab, label: `Deals (${props.deals.length})` },
         { id: 'source' as Tab, label: 'Source' },
@@ -541,6 +545,13 @@ function cell(value: unknown): string {
                         </ul>
                     </div>
                 </div>
+
+                <!-- Email and WhatsApp (§15, §25) -->
+                <ConversationPanel
+                    v-else-if="tab === 'messages'"
+                    class="mt-4"
+                    :lead-id="lead.id"
+                />
 
                 <!-- Timeline (§86) -->
                 <div v-else-if="tab === 'timeline'" class="mt-4">

@@ -20,7 +20,7 @@ final class LeadListQuery
     public const SORTABLE = [
         'full_name', 'email', 'company_name', 'status',
         'score', 'created_at', 'last_activity_at', 'next_follow_up_at',
-        'verification_status', 'verification_confidence',
+        'verification_status', 'verification_confidence', 'engagement_score',
     ];
 
     /**

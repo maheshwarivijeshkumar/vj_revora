@@ -52,6 +52,8 @@ type LeadRow = {
     status_label: string;
     status_tone: string;
     score: number;
+    engagement_score: number | null;
+    engagement_reason: string | null;
     verification: string;
     verification_label: string;
     verification_tone: string;
@@ -203,6 +205,13 @@ const columns: Column<LeadRow>[] = [
         sortable: true,
         numeric: true,
         width: '7rem',
+    },
+    {
+        key: 'engagement_score',
+        label: 'Reply',
+        sortable: true,
+        numeric: true,
+        width: '6rem',
     },
     {
         key: 'verification',
@@ -887,6 +896,20 @@ async function checkProgress(id: string): Promise<void> {
                     <ScoreBadge :score="row.score" />
                 </template>
 
+                <template #cell:engagement_score="{ row }">
+                    <span
+                        v-if="row.engagement_score !== null"
+                        class="tabular-nums"
+                        :class="
+                            row.engagement_score === 0
+                                ? 'text-muted'
+                                : 'font-medium text-strong'
+                        "
+                        :title="row.engagement_reason ?? undefined"
+                        >{{ row.engagement_score }}/10</span
+                    >
+                    <span v-else class="text-muted">—</span>
+                </template>
                 <template #cell:verification="{ row }">
                     <!-- The reasons are on the row, so the explanation costs no
                          request. §59: a flag nobody can explain gets ignored. -->

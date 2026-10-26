@@ -128,6 +128,24 @@ export const tenantNavigation: NavSection[] = [
                 permission: 'integration.view',
             },
             {
+                label: 'Email',
+                href: '/settings/email',
+                icon: 'Mail',
+                permission: 'integration.view',
+            },
+            {
+                label: 'Follow-up',
+                href: '/settings/follow-up',
+                icon: 'Send',
+                permission: 'template.view',
+            },
+            {
+                label: 'WhatsApp',
+                href: '/settings/whatsapp',
+                icon: 'MessageCircle',
+                permission: 'integration.view',
+            },
+            {
                 label: 'Forms',
                 href: '/forms',
                 icon: 'FileInput',
