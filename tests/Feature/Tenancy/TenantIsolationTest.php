@@ -186,7 +186,9 @@ it('has tenant_id on every tenant-owned table, and the trait on its model', func
     // genuinely central rather than an oversight.
     $central = ['tenants', 'tenant_domains', 'platform_users', 'plans',
         'plan_features', 'feature_catalog', 'subscriptions', 'audit_logs',
-        'waitlist_signups', 'contact_enquiries'];
+        'waitlist_signups', 'contact_enquiries',
+        // Public procurement notices: the same for every workspace.
+        'tenders'];
 
     $failures = [];
 

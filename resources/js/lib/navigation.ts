@@ -33,6 +33,12 @@ export const tenantNavigation: NavSection[] = [
                 permission: 'lead.view',
             },
             {
+                label: 'Tenders',
+                href: '/tenders',
+                icon: 'Landmark',
+                permission: 'lead.view',
+            },
+            {
                 label: 'Contacts',
                 href: '/contacts',
                 icon: 'ContactRound',

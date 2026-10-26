@@ -15,6 +15,7 @@ use App\Http\Controllers\Crm\LeadController;
 use App\Http\Controllers\Crm\LeadDetailController;
 use App\Http\Controllers\Crm\LeadExportController;
 use App\Http\Controllers\Crm\LeadWriteController;
+use App\Http\Controllers\Crm\TenderController;
 use App\Http\Controllers\IntegrationController;
 use App\Http\Controllers\Marketing\ContactController as ContactEnquiryController;
 use App\Http\Controllers\Marketing\WaitlistController;
@@ -116,6 +117,12 @@ Route::middleware(['auth', 'tenant.active'])->group(function (): void {
     Route::get('/leads', [LeadController::class, 'index'])
         ->middleware('permission:lead.view')
         ->name('leads.index');
+
+    // Public procurement notices. Not workspace data, but read alongside leads,
+    // so it shares their permission.
+    Route::get('/tenders', [TenderController::class, 'index'])
+        ->middleware('permission:lead.view')
+        ->name('tenders.index');
 
     // Declared before the write routes so `/leads/bulk` is not swallowed by
     // the `{lead}` parameter, and after the index so `/leads` still lists.
