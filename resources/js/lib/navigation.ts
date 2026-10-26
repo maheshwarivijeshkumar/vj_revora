@@ -117,7 +117,7 @@ export const tenantNavigation: NavSection[] = [
         items: [
             {
                 label: 'Integrations',
-                href: '/integrations',
+                href: '/settings/integrations',
                 icon: 'PlugZap',
                 permission: 'integration.view',
             },

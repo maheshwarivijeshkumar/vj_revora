@@ -248,6 +248,27 @@ const activeFilterCount = computed(
 );
 
 /**
+ * Downloads the list as Excel, with the filters and sort currently applied.
+ *
+ * A plain navigation rather than an Inertia visit: the response is a file, and
+ * the browser handles it as a download without leaving the page.
+ */
+function exportLeads(): void {
+    const query = new URLSearchParams();
+    const { per_page: _perPage, ...filters } = props.filters;
+
+    for (const [key, value] of Object.entries(filters)) {
+        if (Array.isArray(value)) {
+            value.forEach((item) => query.append(`${key}[]`, String(item)));
+        } else if (value !== null && value !== '') {
+            query.append(key, String(value));
+        }
+    }
+
+    window.location.href = `/leads/export?${query.toString()}`;
+}
+
+/**
  * Pushes table state into the URL.
  *
  * Keeping it in the query string means a filtered view is linkable and
@@ -470,9 +491,14 @@ async function checkProgress(id: string): Promise<void> {
 
     <AppLayout title="Leads" :breadcrumbs="[{ label: 'Leads' }]">
         <template #actions>
-            <Button v-if="can('lead.export')" variant="secondary" size="sm">
+            <Button
+                v-if="can('lead.export')"
+                variant="secondary"
+                size="sm"
+                @click="exportLeads"
+            >
                 <Download class="size-4" />
-                Export
+                Export to Excel
             </Button>
             <Button
                 v-if="can('lead.create')"
@@ -520,9 +546,7 @@ async function checkProgress(id: string): Promise<void> {
                 @update:visible="(keys) => (visible = keys)"
                 @update:density="(value) => (density = value)"
                 @toggle-filters="filtersOpen = !filtersOpen"
-                @export="
-                    toasts.info('Export arrives with the import/export module')
-                "
+                @export="exportLeads"
             />
 
             <!-- Filter panel. Its options are deferred, so it renders a

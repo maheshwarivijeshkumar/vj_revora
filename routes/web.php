@@ -13,7 +13,9 @@ use App\Http\Controllers\Crm\DealBoardController;
 use App\Http\Controllers\Crm\DealWriteController;
 use App\Http\Controllers\Crm\LeadController;
 use App\Http\Controllers\Crm\LeadDetailController;
+use App\Http\Controllers\Crm\LeadExportController;
 use App\Http\Controllers\Crm\LeadWriteController;
+use App\Http\Controllers\IntegrationController;
 use App\Http\Controllers\Marketing\ContactController as ContactEnquiryController;
 use App\Http\Controllers\Marketing\WaitlistController;
 use App\Http\Controllers\SearchController;
@@ -117,6 +119,11 @@ Route::middleware(['auth', 'tenant.active'])->group(function (): void {
 
     // Declared before the write routes so `/leads/bulk` is not swallowed by
     // the `{lead}` parameter, and after the index so `/leads` still lists.
+    // Before `/leads/{lead}`, which would otherwise take "export" as an id.
+    Route::get('/leads/export', LeadExportController::class)
+        ->middleware('permission:lead.export')
+        ->name('leads.export');
+
     Route::get('/leads/{lead}', [LeadDetailController::class, 'show'])
         ->middleware('permission:lead.view')
         ->name('leads.show');
@@ -194,6 +201,31 @@ Route::middleware(['auth', 'tenant.active'])->group(function (): void {
     Route::post('/deals/{deal}/move', [DealBoardController::class, 'move'])
         ->middleware('permission:deal.update')
         ->name('deals.move');
+
+    // --- Integrations ------------------------------------------------------
+    // Under /settings: the bare /integrations is the public marketing page.
+
+    Route::get('/settings/integrations', [IntegrationController::class, 'index'])
+        ->middleware('permission:integration.view')
+        ->name('integrations.index');
+
+    Route::middleware('permission:integration.connect')->group(function (): void {
+        Route::get('/settings/integrations/{platform}/connect', [IntegrationController::class, 'connect'])
+            ->name('integrations.connect');
+
+        // Where the provider sends the user back after OAuth. Register this
+        // exact URL in the Meta and LinkedIn app settings.
+        Route::get('/settings/integrations/{platform}/callback', [IntegrationController::class, 'callback'])
+            ->name('integrations.callback');
+    });
+
+    Route::post('/settings/integrations/connections/{connection}/sync', [IntegrationController::class, 'sync'])
+        ->middleware('permission:integration.sync')
+        ->name('integrations.sync');
+
+    Route::delete('/settings/integrations/connections/{connection}', [IntegrationController::class, 'destroy'])
+        ->middleware('permission:integration.disconnect')
+        ->name('integrations.destroy');
 
     // --- Settings ----------------------------------------------------------
 

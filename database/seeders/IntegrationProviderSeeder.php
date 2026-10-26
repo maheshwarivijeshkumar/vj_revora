@@ -28,10 +28,10 @@ final class IntegrationProviderSeeder extends Seeder
      * @var list<array{0: string, 1: string, 2: string, 3: string|null, 4: string|null}>
      */
     private const PROVIDERS = [
-        ['meta', 'Facebook / Meta', 'social', 'v21.0', 'https://developers.facebook.com/docs/marketing-api/guides/lead-ads'],
-        ['instagram', 'Instagram', 'social', 'v21.0', 'https://developers.facebook.com/docs/instagram-platform'],
+        ['meta', 'Facebook / Meta', 'social', 'v26.0', 'https://developers.facebook.com/docs/marketing-api/guides/lead-ads'],
+        ['instagram', 'Instagram', 'social', 'v26.0', 'https://developers.facebook.com/docs/instagram-platform'],
         ['tiktok', 'TikTok', 'social', 'v1.3', 'https://developers.tiktok.com/doc/obtain-access-token-for-apis'],
-        ['linkedin', 'LinkedIn', 'social', '202501', 'https://learn.microsoft.com/en-us/linkedin/marketing/lead-sync/leadsync-overview'],
+        ['linkedin', 'LinkedIn', 'social', '202609', 'https://learn.microsoft.com/en-us/linkedin/marketing/lead-sync/leadsync-overview'],
         ['google_ads', 'Google Ads', 'ads', 'v18', 'https://developers.google.com/google-ads/api/docs/start'],
         ['whatsapp', 'WhatsApp Business', 'messaging', 'v21.0', 'https://developers.facebook.com/docs/whatsapp/cloud-api'],
         ['google_calendar', 'Google Calendar', 'calendar', 'v3', 'https://developers.google.com/calendar/api'],

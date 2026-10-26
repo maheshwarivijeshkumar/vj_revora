@@ -35,6 +35,9 @@ enum AuditAction: string
     case WebhookCreated = 'webhook.created';
     case WebhookUpdated = 'webhook.updated';
     case WebhookDeleted = 'webhook.deleted';
+    case IntegrationConnected = 'integration.connected';
+    case IntegrationDisconnected = 'integration.disconnected';
+    case LeadsExported = 'lead.exported';
     case BrandingChanged = 'branding.changed';
 
     public function label(): string
@@ -62,6 +65,9 @@ enum AuditAction: string
             self::WebhookCreated => 'Webhook endpoint added',
             self::WebhookUpdated => 'Webhook endpoint changed',
             self::WebhookDeleted => 'Webhook endpoint removed',
+            self::IntegrationConnected => 'Lead-ad account connected',
+            self::IntegrationDisconnected => 'Lead-ad account disconnected',
+            self::LeadsExported => 'Leads exported',
             self::BrandingChanged => 'Branding changed',
         };
     }
@@ -75,7 +81,8 @@ enum AuditAction: string
     public function isDestructive(): bool
     {
         return str_ends_with($this->value, '.deleted')
-            || $this === self::ApiKeyRevoked;
+            || $this === self::ApiKeyRevoked
+            || $this === self::IntegrationDisconnected;
     }
 
     public function group(): string
@@ -83,7 +90,8 @@ enum AuditAction: string
         return match ($this) {
             self::Login, self::LoginFailed, self::Logout => 'Access',
             self::ApiKeyCreated, self::ApiKeyRevoked,
-            self::WebhookCreated, self::WebhookUpdated, self::WebhookDeleted => 'Integrations',
+            self::WebhookCreated, self::WebhookUpdated, self::WebhookDeleted,
+            self::IntegrationConnected, self::IntegrationDisconnected => 'Integrations',
             self::BrandingChanged => 'Settings',
             default => 'Records',
         };

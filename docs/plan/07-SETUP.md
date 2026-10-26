@@ -66,7 +66,8 @@ Install it as a Windows service if you would rather not start it each session.
 ```bash
 php artisan serve      # http://127.0.0.1:8000
 npm run dev            # Vite dev server
-php artisan queue:work --queue=webhooks,default # Queue worker (Horizon is deployment-only — ADR-011)
+php artisan queue:work --queue=webhooks,integrations,default # Queue worker (Horizon is deployment-only — ADR-011)
+php artisan schedule:work # Runs the hourly lead-ads sync (and other scheduled jobs)
 ```
 
 Sign in with the seeded demo workspace:
