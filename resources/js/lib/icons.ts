@@ -1,5 +1,6 @@
 import {
     Braces,
+    BriefcaseBusiness,
     Building2,
     CalendarDays,
     ChartNoAxesCombined,
@@ -16,6 +17,7 @@ import {
     Layers,
     LayoutDashboard,
     LayoutTemplate,
+    ListChecks,
     Mail,
     Megaphone,
     MessageCircle,
@@ -27,6 +29,7 @@ import {
     Share2,
     ShieldCheck,
     Sparkles,
+    Target,
     Ticket,
     ToggleLeft,
     UsersRound,
@@ -45,6 +48,7 @@ import type { Component } from 'vue';
  */
 const registry: Record<string, Component> = {
     Braces,
+    BriefcaseBusiness,
     Building2,
     CalendarDays,
     ChartNoAxesCombined,
@@ -60,6 +64,7 @@ const registry: Record<string, Component> = {
     Layers,
     LayoutDashboard,
     LayoutTemplate,
+    ListChecks,
     Mail,
     Megaphone,
     MessageCircle,
@@ -71,6 +76,7 @@ const registry: Record<string, Component> = {
     Share2,
     ShieldCheck,
     Sparkles,
+    Target,
     Ticket,
     ToggleLeft,
     UsersRound,

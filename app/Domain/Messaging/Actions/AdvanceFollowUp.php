@@ -29,6 +29,7 @@ final readonly class AdvanceFollowUp
     public function __construct(
         private SendEmailToLead $send,
         private TemplateRenderer $renderer,
+        private ProgressLeadStatus $progress,
     ) {}
 
     public function handle(FollowUpEnrollment $enrollment): void
@@ -95,6 +96,8 @@ final readonly class AdvanceFollowUp
             return;
         }
 
+        $this->progress->afterFirstEmail($lead);
+
         $next = $sequence->steps->firstWhere('position', $step->position + 1);
         $nextAt = $next === null
             ? $enrollment->started_at->copy()->addMinutes($sequence->no_reply_after_minutes)
@@ -120,11 +123,17 @@ final readonly class AdvanceFollowUp
 
         $this->finish($enrollment, EnrollmentStatus::NoReply, null);
 
-        $enrollment->lead?->forceFill([
-            'engagement_score' => 0,
-            'engagement_reason' => "No reply to {$stepCount} follow-up emails",
-            'engagement_scored_at' => now(),
-        ])->save();
+        $lead = $enrollment->lead;
+
+        if ($lead !== null) {
+            $lead->forceFill([
+                'engagement_score' => 0,
+                'engagement_reason' => "No reply to {$stepCount} follow-up emails",
+                'engagement_scored_at' => now(),
+            ])->save();
+
+            $this->progress->afterNoReply($lead);
+        }
     }
 
     private function retryLater(FollowUpEnrollment $enrollment, string $error): void

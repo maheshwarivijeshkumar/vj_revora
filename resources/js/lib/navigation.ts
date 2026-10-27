@@ -33,6 +33,12 @@ export const tenantNavigation: NavSection[] = [
                 permission: 'lead.view',
             },
             {
+                label: 'Opportunities',
+                href: '/opportunities',
+                icon: 'Target',
+                permission: 'lead.view',
+            },
+            {
                 label: 'Tenders',
                 href: '/tenders',
                 icon: 'Landmark',
@@ -126,6 +132,18 @@ export const tenantNavigation: NavSection[] = [
                 href: '/settings/integrations',
                 icon: 'PlugZap',
                 permission: 'integration.view',
+            },
+            {
+                label: 'Setup',
+                href: '/settings/setup',
+                icon: 'ListChecks',
+                permission: 'settings.view',
+            },
+            {
+                label: 'Services',
+                href: '/settings/services',
+                icon: 'BriefcaseBusiness',
+                permission: 'settings.view',
             },
             {
                 label: 'Email',

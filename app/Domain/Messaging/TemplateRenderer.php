@@ -6,9 +6,11 @@ namespace App\Domain\Messaging;
 
 use App\Models\EmailAccount;
 use App\Models\Lead;
+use App\Models\ServiceProfile;
 
 /**
- * Fills {{placeholders}} in a template from the lead and the sender (§26).
+ * Fills {{placeholders}} in a template from the lead, the sender, and the
+ * business it is sent as (§26).
  *
  * A fixed allowlist rather than arbitrary attribute access, so a template
  * cannot reach a field it should not print. Unknown placeholders render as
@@ -26,10 +28,16 @@ final class TemplateRenderer
         'email' => "Lead's email",
         'sender_name' => 'Your name (the mailbox sender name)',
         'sender_email' => 'Your email address',
+        'my_company' => 'Your business name (from the service profile)',
+        'my_website' => 'Your website',
+        'my_phone' => 'Your phone / WhatsApp',
+        'my_signature' => 'Your full sign-off',
     ];
 
-    public function render(string $template, Lead $lead, ?EmailAccount $sender = null): string
+    public function render(string $template, Lead $lead, ?EmailAccount $sender = null, ?ServiceProfile $profile = null): string
     {
+        $profile ??= ServiceProfile::default();
+
         $values = [
             // A greeting with a blank name reads worse than a generic one.
             'first_name' => $lead->first_name ?: 'there',
@@ -40,6 +48,10 @@ final class TemplateRenderer
             'email' => (string) $lead->email,
             'sender_name' => (string) ($sender->from_name ?? config('app.name')),
             'sender_email' => (string) $sender?->email,
+            'my_company' => (string) ($profile->name ?? config('app.name')),
+            'my_website' => (string) $profile?->website,
+            'my_phone' => (string) $profile?->phone,
+            'my_signature' => (string) ($profile->signature ?? $sender->from_name ?? config('app.name')),
         ];
 
         return (string) preg_replace_callback(

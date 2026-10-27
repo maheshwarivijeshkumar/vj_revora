@@ -18,6 +18,7 @@ use App\Http\Controllers\Crm\LeadConversationController;
 use App\Http\Controllers\Crm\LeadDetailController;
 use App\Http\Controllers\Crm\LeadExportController;
 use App\Http\Controllers\Crm\LeadWriteController;
+use App\Http\Controllers\Crm\OpportunityController;
 use App\Http\Controllers\Crm\TenderController;
 use App\Http\Controllers\Crm\TimelineController;
 use App\Http\Controllers\IntegrationController;
@@ -28,6 +29,9 @@ use App\Http\Controllers\Settings\ApiKeyController;
 use App\Http\Controllers\Settings\AuditLogController;
 use App\Http\Controllers\Settings\EmailAccountController;
 use App\Http\Controllers\Settings\FollowUpController;
+use App\Http\Controllers\Settings\ServiceProfileController;
+use App\Http\Controllers\Settings\SetupController;
+use App\Http\Controllers\Settings\UpworkController;
 use App\Http\Controllers\Settings\WebhookController;
 use App\Http\Controllers\Settings\WhatsAppController;
 use App\Http\Controllers\Site\ComingSoonController;
@@ -271,6 +275,60 @@ Route::middleware(['auth', 'tenant.active'])->group(function (): void {
     Route::post('/deals/{deal}/move', [DealBoardController::class, 'move'])
         ->middleware('permission:deal.update')
         ->name('deals.move');
+
+    // --- Opportunities -----------------------------------------------------
+    // Tenders and job posts scored against what the workspace sells.
+
+    Route::get('/opportunities', [OpportunityController::class, 'index'])
+        ->middleware('permission:lead.view')
+        ->name('opportunities.index');
+
+    Route::middleware('permission:lead.update')->group(function (): void {
+        Route::patch('/opportunities/{match}', [OpportunityController::class, 'update'])
+            ->name('opportunities.update');
+
+        Route::post('/opportunities/{match}/draft', [OpportunityController::class, 'draft'])
+            ->name('opportunities.draft');
+    });
+
+    Route::post('/opportunities/{match}/convert', [OpportunityController::class, 'convert'])
+        ->middleware('permission:lead.create')
+        ->name('opportunities.convert');
+
+    Route::get('/settings/setup', SetupController::class)
+        ->middleware('permission:settings.view')
+        ->name('settings.setup');
+
+    Route::get('/settings/services', [ServiceProfileController::class, 'index'])
+        ->middleware('permission:settings.view')
+        ->name('settings.services');
+
+    Route::middleware('permission:settings.manage')->group(function (): void {
+        Route::post('/settings/services/install', [ServiceProfileController::class, 'install'])
+            ->name('settings.services.install');
+
+        Route::post('/settings/services', [ServiceProfileController::class, 'store'])
+            ->name('settings.services.store');
+
+        Route::put('/settings/services/{profile}', [ServiceProfileController::class, 'update'])
+            ->name('settings.services.update');
+
+        Route::delete('/settings/services/{profile}', [ServiceProfileController::class, 'destroy'])
+            ->name('settings.services.destroy');
+    });
+
+    Route::middleware('permission:integration.connect')->group(function (): void {
+        Route::get('/settings/upwork/connect', [UpworkController::class, 'connect'])
+            ->name('settings.upwork.connect');
+
+        // Register this exact URL as the callback in the Upwork API key.
+        Route::get('/settings/upwork/callback', [UpworkController::class, 'callback'])
+            ->name('settings.upwork.callback');
+    });
+
+    Route::delete('/settings/upwork', [UpworkController::class, 'destroy'])
+        ->middleware('permission:integration.disconnect')
+        ->name('settings.upwork.destroy');
 
     // --- Messaging ---------------------------------------------------------
     // A lead's email and WhatsApp thread (§15, §25).

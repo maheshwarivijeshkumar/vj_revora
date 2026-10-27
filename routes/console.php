@@ -1,5 +1,6 @@
 <?php
 
+use App\Console\Commands\FetchOpportunities;
 use App\Console\Commands\FetchTenders;
 use App\Console\Commands\PurgeDeletedDocuments;
 use App\Console\Commands\RunMessaging;
@@ -42,3 +43,13 @@ Schedule::command(FetchTenders::class)
 // the next email would go.
 Schedule::command(RunMessaging::class)->everyMinute()->withoutOverlapping();
 Schedule::command(RunMessaging::class, ['--mailboxes'])->everyFiveMinutes()->withoutOverlapping();
+
+// Job posts. The public boards twice a day (Remotive asks for no more than a
+// few calls a day); Upwork every two hours, because the first proposals on a
+// fresh job are the ones that get read.
+Schedule::command(FetchOpportunities::class)
+    ->twiceDaily(9, 17)
+    ->timezone('Asia/Karachi')
+    ->withoutOverlapping()
+    ->runInBackground();
+Schedule::command(FetchOpportunities::class, ['--upwork'])->everyTwoHours()->withoutOverlapping()->runInBackground();

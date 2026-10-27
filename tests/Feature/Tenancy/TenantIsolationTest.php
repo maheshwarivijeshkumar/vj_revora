@@ -187,8 +187,10 @@ it('has tenant_id on every tenant-owned table, and the trait on its model', func
     $central = ['tenants', 'tenant_domains', 'platform_users', 'plans',
         'plan_features', 'feature_catalog', 'subscriptions', 'audit_logs',
         'waitlist_signups', 'contact_enquiries',
-        // Public procurement notices: the same for every workspace.
-        'tenders'];
+        // Public procurement notices and job posts: the same for every
+        // workspace. What a workspace did with one lives in
+        // opportunity_matches, which is tenant-owned.
+        'tenders', 'job_posts'];
 
     $failures = [];
 

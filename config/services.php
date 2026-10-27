@@ -76,12 +76,26 @@ return [
     ],
 
     /*
+    | Upwork job search (Settings → Setup). Needs an API key Upwork has
+    | approved with "Read marketplace Job Postings". Callback URL to register:
+    | {APP_URL}/settings/upwork/callback
+    */
+
+    'upwork' => [
+        'client_id' => env('UPWORK_CLIENT_ID'),
+        'client_secret' => env('UPWORK_CLIENT_SECRET'),
+    ],
+
+    /*
     | Reply scoring: claude | openai | gemini | keywords. Without a key for
     | the chosen provider, replies are scored by keyword rules.
     */
 
     'ai' => [
         'reply_provider' => env('AI_REPLY_PROVIDER', 'keywords'),
+        // Drafts proposals, pitches and tender letters: claude | openai |
+        // gemini. Without a key, drafts are filled in from templates.
+        'provider' => env('AI_PROVIDER', env('AI_REPLY_PROVIDER')),
     ],
 
     'anthropic' => [

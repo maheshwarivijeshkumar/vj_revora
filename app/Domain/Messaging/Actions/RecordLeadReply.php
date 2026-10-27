@@ -27,6 +27,7 @@ final readonly class RecordLeadReply
 
     public function __construct(
         private ScoreReply $scorer,
+        private ProgressLeadStatus $progress,
     ) {}
 
     public function handle(Lead $lead, Message $reply): void
@@ -60,6 +61,10 @@ final readonly class RecordLeadReply
         }
 
         $lead->forceFill($attributes)->save();
+
+        if (isset($attributes['engagement_score'])) {
+            $this->progress->afterReply($lead, (int) $attributes['engagement_score']);
+        }
     }
 
     private function asksToStop(string $text, MessageChannel $channel): bool

@@ -7,6 +7,7 @@ namespace App\Console\Commands;
 use App\Domain\Integrations\Enums\ConnectionStatus;
 use App\Domain\Messaging\Enums\EnrollmentStatus;
 use App\Domain\Tenancy\TenantContext;
+use App\Http\Controllers\Settings\SetupController;
 use App\Jobs\RunDueFollowUps;
 use App\Jobs\SyncMailboxJob;
 use App\Models\EmailAccount;
@@ -14,6 +15,7 @@ use App\Models\FollowUpEnrollment;
 use App\Models\Tenant;
 use Illuminate\Console\Command;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
 
 /**
  * Queues the messaging work across every workspace: due follow-up emails,
@@ -27,6 +29,9 @@ final class RunMessaging extends Command
 
     public function handle(TenantContext $context): int
     {
+        // Proof for the setup checklist that the scheduler is alive.
+        Cache::put(SetupController::HEARTBEAT_KEY, now()->toIso8601String(), now()->addMinutes(5));
+
         return $this->option('mailboxes')
             ? $this->syncMailboxes($context)
             : $this->runFollowUps($context);

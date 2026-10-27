@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
+use App\Domain\Opportunities\Actions\MatchAllWorkspaces;
 use App\Domain\Tenders\Actions\ImportTenders;
 use Illuminate\Console\Command;
 use RuntimeException;
@@ -17,7 +18,7 @@ final class FetchTenders extends Command
 
     protected $description = 'Fetch active Government of Pakistan tenders from PPRA and tag the web, software and IT ones';
 
-    public function handle(ImportTenders $import): int
+    public function handle(ImportTenders $import, MatchAllWorkspaces $match): int
     {
         try {
             $counts = $import->handle();
@@ -34,6 +35,10 @@ final class FetchTenders extends Command
             $counts['updated'],
             $counts['it_related'],
         ));
+
+        // Scored against each workspace's services, so a tender for SEO or
+        // branding reaches the agency even when PPRA files it under "Other".
+        $this->info('New tender matches: '.$match->handle());
 
         return self::SUCCESS;
     }
