@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Crm;
 
+use App\Domain\Activity\TimelinePresenter;
+use App\Domain\Documents\DocumentPresenter;
 use App\Domain\Leads\Enums\LeadStatus;
 use App\Http\Controllers\Controller;
 use App\Models\ApiKey;
@@ -22,10 +24,10 @@ use Inertia\Response;
  * One lead, in full (§44).
  *
  * The sections §44 asks for that have something behind them today: overview,
- * source and attribution, score explanation, verification findings, timeline,
- * deals and audit. Conversations, emails, WhatsApp, tasks, appointments, notes
- * and documents arrive with the modules that produce them — rather than as
- * empty tabs that imply a feature exists.
+ * source and attribution, score explanation, verification findings, what people
+ * did against it, its files, the system log, deals and audit. Conversations,
+ * emails, WhatsApp and appointments arrive with the modules that produce them —
+ * rather than as empty tabs that imply a feature exists.
  */
 final class LeadDetailController extends Controller
 {
@@ -47,8 +49,19 @@ final class LeadDetailController extends Controller
             // query is the most expensive, so it loads when asked for.
             'audit' => Inertia::defer(fn (): array => $this->audit($lead)),
             'duplicates' => $this->duplicates($lead),
+            // The human timeline: notes, tasks and logged calls. Shaped by one
+            // presenter shared with the deal screen, so the two cannot drift
+            // into showing the same data differently.
+            'timelinePanel' => app(TimelinePresenter::class)->forSubject($lead),
+            'documents' => app(DocumentPresenter::class)->forSubject($lead),
             // The edit drawer reuses the list's form, so it needs the same
             // option lists. Deferred for the same reason it is there.
+            'timelineOptions' => Inertia::defer(
+                fn (): array => app(TimelinePresenter::class)->options(),
+            ),
+            'documentConstraints' => Inertia::defer(
+                fn (): array => app(DocumentPresenter::class)->constraints(),
+            ),
             'options' => Inertia::defer(fn (): array => [
                 'statuses' => LeadStatus::options(),
                 'owners' => User::query()

@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Domain\Activity\Concerns\HasTimeline;
 use App\Domain\Contact\PhoneNumber;
+use App\Domain\Documents\Concerns\HasDocuments;
 use App\Domain\Leads\Enums\LeadStatus;
 use App\Domain\Leads\Enums\ScoreBand;
 use App\Domain\Leads\Enums\VerificationStatus;
@@ -71,7 +73,7 @@ use Illuminate\Support\Str;
 final class Lead extends Model
 {
     /** @use HasFactory<LeadFactory> */
-    use BelongsToTenant, HasFactory, SoftDeletes;
+    use BelongsToTenant, HasDocuments, HasFactory, HasTimeline, SoftDeletes;
 
     /**
      * True while the capture pipeline is still working on this lead.

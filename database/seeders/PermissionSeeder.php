@@ -29,6 +29,14 @@ final class PermissionSeeder extends Seeder
         'quote' => ['view', 'create', 'update', 'delete'],
         'product' => ['view', 'create', 'update', 'delete'],
         'task' => ['view', 'create', 'update', 'delete'],
+        'note' => ['view', 'create', 'update', 'delete'],
+        // Logging a call or a meeting is creating an activity; everything else
+        // in the timeline is recorded as a side effect of doing the thing, so
+        // there is nothing to update or delete by hand.
+        'activity' => ['view', 'create'],
+        // No update: a file is immutable once stored. Correcting one means
+        // attaching the corrected version, which is also the honest record.
+        'document' => ['view', 'create', 'delete'],
         'campaign' => ['view', 'create', 'manage'],
         'automation' => ['view', 'create', 'execute', 'manage'],
         'conversation' => ['view', 'reply', 'assign', 'close'],

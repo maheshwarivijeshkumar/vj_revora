@@ -10,13 +10,16 @@ use App\Http\Controllers\Crm\CompanyWriteController;
 use App\Http\Controllers\Crm\ContactController;
 use App\Http\Controllers\Crm\ContactWriteController;
 use App\Http\Controllers\Crm\DealBoardController;
+use App\Http\Controllers\Crm\DealDetailController;
 use App\Http\Controllers\Crm\DealWriteController;
+use App\Http\Controllers\Crm\DocumentController;
 use App\Http\Controllers\Crm\LeadController;
 use App\Http\Controllers\Crm\LeadConversationController;
 use App\Http\Controllers\Crm\LeadDetailController;
 use App\Http\Controllers\Crm\LeadExportController;
 use App\Http\Controllers\Crm\LeadWriteController;
 use App\Http\Controllers\Crm\TenderController;
+use App\Http\Controllers\Crm\TimelineController;
 use App\Http\Controllers\IntegrationController;
 use App\Http\Controllers\Marketing\ContactController as ContactEnquiryController;
 use App\Http\Controllers\Marketing\WaitlistController;
@@ -161,6 +164,56 @@ Route::middleware(['auth', 'tenant.active'])->group(function (): void {
         ->middleware('permission:lead.view')
         ->name('bulk-operations.show');
 
+    // --- Timeline: notes, tasks and logged activities (§21) ----------------
+    //
+    // One set of routes for every entity. The subject arrives in the body as a
+    // type and an id, resolved through an allowlist in the controller.
+
+    Route::post('/notes', [TimelineController::class, 'storeNote'])
+        ->middleware('permission:note.create')
+        ->name('notes.store');
+
+    Route::patch('/notes/{note}', [TimelineController::class, 'updateNote'])
+        ->middleware('permission:note.update')
+        ->name('notes.update');
+
+    Route::delete('/notes/{note}', [TimelineController::class, 'destroyNote'])
+        ->middleware('permission:note.delete')
+        ->name('notes.destroy');
+
+    Route::post('/tasks', [TimelineController::class, 'storeTask'])
+        ->middleware('permission:task.create')
+        ->name('tasks.store');
+
+    Route::patch('/tasks/{task}', [TimelineController::class, 'updateTask'])
+        ->middleware('permission:task.update')
+        ->name('tasks.update');
+
+    Route::delete('/tasks/{task}', [TimelineController::class, 'destroyTask'])
+        ->middleware('permission:task.delete')
+        ->name('tasks.destroy');
+
+    Route::post('/activities', [TimelineController::class, 'storeActivity'])
+        ->middleware('permission:activity.create')
+        ->name('activities.store');
+
+    // --- Documents (§21) ----------------------------------------------------
+    //
+    // Uploads live on a private disk; `download` is the only way back out, and
+    // it runs the session, tenant and permission checks first.
+
+    Route::post('/documents', [DocumentController::class, 'store'])
+        ->middleware('permission:document.create')
+        ->name('documents.store');
+
+    Route::get('/documents/{document}', [DocumentController::class, 'download'])
+        ->middleware('permission:document.view')
+        ->name('documents.download');
+
+    Route::delete('/documents/{document}', [DocumentController::class, 'destroy'])
+        ->middleware('permission:document.delete')
+        ->name('documents.destroy');
+
     Route::get('/contacts', [ContactController::class, 'index'])
         ->middleware('permission:contact.view')
         ->name('contacts.index');
@@ -196,6 +249,12 @@ Route::middleware(['auth', 'tenant.active'])->group(function (): void {
     Route::get('/deals', [DealBoardController::class, 'index'])
         ->middleware('permission:deal.view')
         ->name('deals.index');
+
+    // Before the write routes so `/deals/{deal}` does not swallow them, and
+    // after the board so `/deals` still lists.
+    Route::get('/deals/{deal}', [DealDetailController::class, 'show'])
+        ->middleware('permission:deal.view')
+        ->name('deals.show');
 
     Route::post('/deals', [DealWriteController::class, 'store'])
         ->middleware('permission:deal.create')

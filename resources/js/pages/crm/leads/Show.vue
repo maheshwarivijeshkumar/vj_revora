@@ -16,6 +16,15 @@ import {
 } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
 import ConversationPanel from '@/components/crm/ConversationPanel.vue';
+import DocumentsPanel, {
+    type AttachedDocument,
+    type DocumentConstraints,
+} from '@/components/crm/DocumentsPanel.vue';
+import TimelinePanel, {
+    type TimelineActivity,
+    type TimelineNote,
+    type TimelineTask,
+} from '@/components/crm/TimelinePanel.vue';
 import LeadFormDrawer, {
     type EditableLead,
 } from '@/components/crm/LeadFormDrawer.vue';
@@ -119,6 +128,23 @@ const props = defineProps<{
         ip: string | null;
         created_at: string | null;
     }[];
+    documents: AttachedDocument[];
+    documentConstraints?: DocumentConstraints;
+    timelinePanel: {
+        activities: TimelineActivity[];
+        notes: TimelineNote[];
+        tasks: TimelineTask[];
+    };
+    timelineOptions?: {
+        activityTypes: {
+            value: string;
+            label: string;
+            has_duration: boolean;
+        }[];
+        taskStatuses: { value: string; label: string; tone: string }[];
+        taskPriorities: { value: string; label: string; tone: string }[];
+        owners: SelectOption[];
+    };
     options?: {
         statuses: { value: string; label: string }[];
         owners: SelectOption[];
@@ -128,7 +154,15 @@ const props = defineProps<{
 
 const { can } = useAuthorization();
 
-type Tab = 'overview' | 'messages' | 'timeline' | 'deals' | 'source' | 'audit';
+type Tab =
+    | 'overview'
+    | 'messages'
+    | 'activity'
+    | 'files'
+    | 'timeline'
+    | 'deals'
+    | 'source'
+    | 'audit';
 
 const tab = ref<Tab>('overview');
 const editing = ref(false);
@@ -137,9 +171,9 @@ const expandedEvent = ref<number | null>(null);
 /**
  * Only tabs with something behind them.
  *
- * §44 lists conversations, emails, WhatsApp, tasks, appointments, notes and
- * documents too. Those arrive with the modules that produce them — an empty tab
- * implies a feature exists, which is worse than its absence (§124).
+ * §44 lists conversations, emails, WhatsApp and appointments too. Those arrive
+ * with the modules that produce them — an empty tab implies a feature exists,
+ * which is worse than its absence (§124).
  */
 const tabs = computed(() =>
     [
@@ -147,7 +181,18 @@ const tabs = computed(() =>
         ...(can('conversation.view')
             ? [{ id: 'messages' as Tab, label: 'Messages' }]
             : []),
-        { id: 'timeline' as Tab, label: `Timeline (${props.timeline.length})` },
+        {
+            id: 'activity' as Tab,
+            label: `Activity (${props.timelinePanel.activities.length})`,
+        },
+        {
+            id: 'files' as Tab,
+            label: `Files (${props.documents.length})`,
+        },
+        {
+            id: 'timeline' as Tab,
+            label: `System log (${props.timeline.length})`,
+        },
         { id: 'deals' as Tab, label: `Deals (${props.deals.length})` },
         { id: 'source' as Tab, label: 'Source' },
         ...(can('audit.view') ? [{ id: 'audit' as Tab, label: 'Audit' }] : []),
@@ -180,9 +225,17 @@ const utmEntries = computed(() => Object.entries(props.attribution.utm ?? {}));
 function openTab(next: Tab): void {
     tab.value = next;
 
-    // The audit tab is deferred, so the first visit asks for it.
+    // Both are deferred, so the first visit asks for them.
     if (next === 'audit' && props.audit === undefined) {
         router.reload({ only: ['audit'] });
+    }
+
+    if (next === 'activity' && props.timelineOptions === undefined) {
+        router.reload({ only: ['timelineOptions'] });
+    }
+
+    if (next === 'files' && props.documentConstraints === undefined) {
+        router.reload({ only: ['documentConstraints'] });
     }
 }
 
@@ -553,7 +606,29 @@ function cell(value: unknown): string {
                     :lead-id="lead.id"
                 />
 
-                <!-- Timeline (§86) -->
+                <!-- What people did (§21) -->
+                <TimelinePanel
+                    v-else-if="tab === 'activity'"
+                    class="mt-4"
+                    subject-type="lead"
+                    :subject-id="lead.id"
+                    :activities="timelinePanel.activities"
+                    :notes="timelinePanel.notes"
+                    :tasks="timelinePanel.tasks"
+                    :options="timelineOptions"
+                />
+
+                <!-- Files (§21) -->
+                <DocumentsPanel
+                    v-else-if="tab === 'files'"
+                    class="mt-4"
+                    subject-type="lead"
+                    :subject-id="lead.id"
+                    :documents="documents"
+                    :constraints="documentConstraints"
+                />
+
+                <!-- What the system did (§86) -->
                 <div v-else-if="tab === 'timeline'" class="mt-4">
                     <div
                         v-if="timeline.length === 0"

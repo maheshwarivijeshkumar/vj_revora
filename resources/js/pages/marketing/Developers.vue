@@ -6,6 +6,7 @@ import PageHero from '@/components/marketing/PageHero.vue';
 import SectionLabel from '@/components/marketing/SectionLabel.vue';
 import Button from '@/components/ui/Button.vue';
 import MarketingLayout from '@/layouts/MarketingLayout.vue';
+import { copyText } from '@/lib/clipboard';
 
 defineProps<{
     brand: { name: string; tagline: string; assets: Record<string, string> };
@@ -32,14 +33,13 @@ const snippet = `curl -X POST https://api.example.com/v1/inbound/leads \\
 const copied = ref(false);
 
 async function copySnippet(): Promise<void> {
-    try {
-        await navigator.clipboard.writeText(snippet);
+    if (await copyText(snippet)) {
         copied.value = true;
         setTimeout(() => (copied.value = false), 2000);
-    } catch {
-        // Clipboard access is blocked in some contexts; the code is selectable
-        // on screen either way, so there is nothing useful to report.
     }
+
+    // No message on failure: the snippet is selectable on screen either way,
+    // and a toast on a marketing page would be noise.
 }
 
 const endpoints = [

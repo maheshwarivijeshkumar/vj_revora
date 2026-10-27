@@ -25,6 +25,13 @@ final class DemoDataSeeder extends Seeder
 {
     public function run(): void
     {
+        // Demo addresses use the reserved `.example` domains (RFC 2606), which
+        // exist so they never resolve. Left on, the queued MX check would mark
+        // every seeded lead unusable and make verification look broken on a
+        // fresh install. The inline check still runs, so the demo data carries
+        // real verification verdicts for everything that does not need DNS.
+        config(['verification.queue_recheck' => false]);
+
         $capture = app(CaptureLead::class);
         $normalizer = app(LeadNormalizer::class);
         $createDeal = app(CreateDeal::class);

@@ -75,6 +75,21 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Re-check on the queue after capture
+    |--------------------------------------------------------------------------
+    |
+    | Capture verifies inline without the DNS lookup and queues a job to add
+    | it. Turn this off where there is no network, or where the addresses are
+    | known not to resolve — seeded demo data uses the RFC 2606 `.example`
+    | domains, which are reserved precisely so they never do, so every seeded
+    | lead would otherwise be filed as unusable and the feature would look
+    | broken on a fresh install.
+    |
+    */
+    'queue_recheck' => env('VERIFY_QUEUE_RECHECK', true),
+
+    /*
+    |--------------------------------------------------------------------------
     | Default region for numbers written without a country code
     |--------------------------------------------------------------------------
     |

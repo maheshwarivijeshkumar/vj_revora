@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Head, router } from '@inertiajs/vue3';
+import { Head, Link, router } from '@inertiajs/vue3';
 import { Building2, MoveRight, Pencil, Plus, Trash2 } from 'lucide-vue-next';
 import { computed, ref, onMounted } from 'vue';
 import DealFormDrawer, {
@@ -248,11 +248,13 @@ const stageOptions = computed(() =>
                 @move="onMove"
             >
                 <template #card="{ card, move }">
-                    <p
-                        class="text-[0.9rem] font-medium text-balance text-strong"
+                    <Link
+                        :href="`/deals/${card.id}`"
+                        class="block text-[0.9rem] font-medium text-balance text-strong hover:text-primary-600"
+                        @click.stop
                     >
                         {{ card.title }}
-                    </p>
+                    </Link>
 
                     <p
                         v-if="card.company"

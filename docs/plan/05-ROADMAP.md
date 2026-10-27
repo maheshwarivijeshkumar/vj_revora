@@ -381,11 +381,113 @@ provisioning job in 1.2.
     factories — test data that does not validate is a trap for every test written
     after it.
 
-Still open in Phase 1: the deal detail screen (§44), activities, tasks, notes
-and attachments (1.8 — bulk actions were a §113 concern and are done, but the
-polymorphic activity model this row is really about is not), and the
-widget-driven dashboard (1.10). Authorized provider ingestion (Meta Lead Ads,
-LinkedIn Lead Gen Forms, job-board partner feeds) is Phase 2's integration work.
+- **Deal detail screen — done.** `/deals/{deal}`, three tabs plus the right
+  rail. 14 tests.
+
+    - **Stage history reads oldest first** — the one list on the page that is a
+      story rather than a feed — with time spent in each stage. That duration
+      comes from `seconds_in_previous_stage`, recorded on the move, so renaming or
+      deleting a stage later cannot rewrite history (§22).
+    - **Durations round to the roughest true unit.** "3 days", not "3 days 4
+      hours 11 minutes": nobody reads a pipeline history to the minute, and the
+      precision would imply a confidence the timestamps do not have.
+    - **The weighted value is computed server-side** so every reader agrees about
+      the rounding instead of each recomputing it.
+    - **Who the deal is with** — company, main contact with click-to-call and
+      mail links, and the lead it came from with its score, because §85 requires
+      the acquisition story to survive conversion to an opportunity.
+    - **The stage is read-only here**, with a link to the board. A move
+      recalculates probability, may close the deal and reorders two columns; the
+      board owns it, and saying where rather than offering a broken control is the
+      honest version.
+    - Only tabs with something behind them — quotes, tasks, appointments and
+      documents arrive with their modules (§124).
+
+    Board card titles and command-palette deal hits now open the record; the board
+    itself was the stand-in while there was nothing to open.
+
+- **1.8 activities, tasks and notes — done.** All three hang off any entity
+  polymorphically, so one implementation serves leads, contacts, companies and
+  deals. 23 tests. Attachments followed separately, below.
+
+    - **The subject comes from a fixed allowlist**, never from the request string.
+      Resolving `subject_type` straight from input would turn these endpoints into
+      a way to write rows against `User`, `ApiKey` or any class that happens to
+      exist; there is a test for both the bare name and the FQCN.
+    - **`lead_events` stays separate.** That records what the _system_ did
+      (captured, scored, verified) and is append-only evidence. These record what
+      _people_ did, and a person can correct their own note — so notes and tasks
+      are soft-deleted and editable. Both appear on the lead screen, as "Activity"
+      and "System log".
+    - **Notes and tasks write themselves into the activity list** as a side
+      effect, so the timeline is one list rather than three the reader has to merge
+      in their head. Which is also why `note`, `task` and `status_change` are
+      refused by the log-an-activity endpoint: offering them would invite two
+      records of one event.
+    - **Exactly one note can be pinned.** Pinning a second unpins the first rather
+      than leaving two claiming the top of the record.
+    - **A finished task is never overdue**, however late it was finished —
+      otherwise a completed list fills with red nobody can clear. Completion is
+      stamped on finishing and _cleared_ on reopening, and completing an
+      already-done task does not log a second completion.
+    - **Outstanding ordering puts undated tasks last.** An undated task is a
+      someday, and ranking it above tomorrow's call is how a list stops being
+      trusted. Cancelled counts as finished: it was decided, and a decision is not
+      outstanding work.
+    - `TimelinePresenter` shapes the data for both detail screens, so they cannot
+      drift into disagreeing about what "overdue" means.
+
+    Two things worth recording: the priority sort was first written with MySQL's
+    `FIELD()`, which does not exist in PostgreSQL — replaced with a `CASE`, since
+    ADR-008 keeps every query portable. And the new models' date properties were
+    annotated `Carbon` when the app configures `Date::use(CarbonImmutable)`;
+    `CarbonInterface` is what the rest of the models use.
+
+- **1.8 attachments and documents — done.** Polymorphic like notes and tasks, so
+  the same panel serves every entity. 32 tests.
+
+    - **Private disk, served by a controller.** Nothing lands under the web root,
+      so a leaked path is not a leaked file. `download()` runs the session, tenant
+      and permission checks first, and route-model binding resolves by uuid
+      _through the tenant scope_ — a correct uuid from another workspace is a 404,
+      with no ownership check here to forget (ADR-009). There is a test for exactly
+      that: right uuid, right permission, wrong workspace.
+    - **Nothing user-supplied reaches the filesystem.** The stored name is
+      `{uuid}.{detected extension}` under `documents/{tenant}/`, so traversal, a
+      double extension and header-breaking characters are not things the path has
+      to survive. The submitted name is kept in a column, sanitised, purely so the
+      download gives back a name the person recognises.
+    - **Both an extension allowlist and a `mimetypes` check**, never a blocklist —
+      a blocklist is a bet that nobody finds an extension you did not think of.
+      `mimetypes` reads the file's actual contents, so a script renamed `.pdf`
+      fails; the extension list stops a genuine PDF being stored under a name a web
+      server might decide to execute.
+    - **SVG is refused.** It is a script-carrying document, not an image, and
+      serving one from this origin is stored XSS. The same reasoning drives a
+      second, narrower allowlist for `Content-Disposition: inline`: everything
+      else downloads, and both go out with `nosniff`.
+    - **The recorded MIME type is the detected one**, never the client-supplied
+      `Content-Type` — that is just another field the uploader controls.
+    - **The same file attached twice returns the existing row.** A duplicate
+      attachment is almost always a double-clicked button, and stacking them makes
+      the panel useless; a sha256 of the contents is what recognises it.
+    - **A soft delete keeps the bytes**, because a restore that cannot return the
+      file is not a restore. `documents:purge` (scheduled daily, `--days=30`,
+      `--dry-run`) is what eventually clears them — otherwise "deleted" never means
+      deleted, which is its own problem under §88 erasure. It refuses `--days=0`.
+    - **`SubjectType` now holds the allowlist** for notes, tasks _and_ documents.
+      It was a private const in `TimelineController`; two copies of an allowlist is
+      how the newer one quietly gains an entry the older one rejects.
+
+    Worth recording: the first two MIME tests were wrong, not the code.
+    `UploadedFile::fake()` overrides `getMimeType()` to return whatever type it was
+    told to claim, so a fake can never exercise content sniffing — it reports the
+    extension's type and the rule passes. Both tests now build a real
+    `UploadedFile` over a real file, which is the path production takes.
+
+Still open in Phase 1: the widget-driven dashboard (1.10). Authorized provider
+ingestion (Meta Lead Ads, LinkedIn Lead Gen Forms, job-board partner feeds) is
+Phase 2's integration work.
 
 | #    | Deliverable                                                                   |
 | ---- | ----------------------------------------------------------------------------- |
@@ -396,7 +498,7 @@ LinkedIn Lead Gen Forms, job-board partner feeds) is Phase 2's integration work.
 | 1.5  | Billing provider abstraction + first provider (Stripe)                        |
 | 1.6  | **Leads**: model, normalization, dedup, manual scoring, assignment, lifecycle |
 | 1.7  | Contacts, Companies, Deals, Pipelines with Kanban drag/drop                   |
-| 1.8  | Activities, tasks, notes, tags, attachments (polymorphic)                     |
+| 1.8  | Activities, tasks, notes, tags, attachments (polymorphic) — **done**          |
 | 1.9  | **DataTable** component, complete to the §110–115 standard                    |
 | 1.10 | Widget-driven dashboard + first widget set                                    |
 | 1.11 | Form builder, embed/JS snippet/REST endpoint/webhook, UTM capture             |

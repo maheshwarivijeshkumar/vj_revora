@@ -1,6 +1,7 @@
 <?php
 
 use App\Console\Commands\FetchTenders;
+use App\Console\Commands\PurgeDeletedDocuments;
 use App\Console\Commands\RunMessaging;
 use App\Console\Commands\SyncLeadAds;
 use Illuminate\Foundation\Inspiring;
@@ -10,6 +11,17 @@ use Illuminate\Support\Facades\Schedule;
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
+
+/*
+|--------------------------------------------------------------------------
+| Schedule
+|--------------------------------------------------------------------------
+*/
+
+// Removing a document keeps the file so a mistaken delete can be undone.
+// Something has to clear them up eventually, or "deleted" never means deleted
+// and the disk grows forever (§88).
+Schedule::command(PurgeDeletedDocuments::class)->dailyAt('03:30');
 
 // Lead ads are polled rather than pushed: no public webhook endpoint to expose,
 // and an hour is the freshness the sales team asked for. Each run overlaps the

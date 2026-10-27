@@ -95,9 +95,11 @@ final readonly class CaptureLead
 
             $this->recordEvent($lead, LeadEvent::VERIFIED, $verification->toArray());
 
-            // Queued after the transaction commits, so the worker cannot read a
-            // lead that is not there yet.
-            DB::afterCommit(fn () => VerifyLead::dispatch($lead->id));
+            // Queued after the transaction commits, so the worker cannot read
+            // a lead that is not there yet.
+            if (config('verification.queue_recheck')) {
+                DB::afterCommit(fn () => VerifyLead::dispatch($lead->id));
+            }
 
             // Only new leads are routed, and only ones worth a human's time:
             // handing a rep an address that cannot receive mail wastes the one

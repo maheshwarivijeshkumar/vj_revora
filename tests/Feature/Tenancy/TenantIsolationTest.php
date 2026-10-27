@@ -223,7 +223,7 @@ it('indexes tenant_id on every tenant-owned table', function (): void {
     // Without an index, tenant scoping turns every list query into a full
     // table scan once the table is shared by many tenants.
     $tables = ['users', 'teams', 'team_members', 'usage_meters',
-        'usage_records', 'tenant_settings', 'dashboards'];
+        'usage_records', 'tenant_settings', 'dashboards', 'documents'];
 
     $missing = [];
 

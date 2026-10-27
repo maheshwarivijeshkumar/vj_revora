@@ -9,6 +9,19 @@ type ToastOptions = {
     secondaryAction?: ToastAction;
 };
 
+/**
+ * A unique id for one toast.
+ *
+ * Deliberately not `crypto.randomUUID()`: that only exists in a secure context,
+ * so on a plain-HTTP development host like `http://myapp.test` it is undefined
+ * and every single toast in the application throws instead of appearing. A
+ * counter is enough — these ids live as long as a toast is on screen and are
+ * never stored, compared across tabs or sent anywhere.
+ */
+let sequence = 0;
+
+const nextId = (): string => `toast-${++sequence}`;
+
 /** Auto-dismiss defaults. Errors persist until dismissed (§117). */
 const DEFAULT_DURATION: Record<ToastType, number> = {
     success: 4000,
@@ -53,7 +66,7 @@ export const useToastStore = defineStore('toast', () => {
             return duplicate.id;
         }
 
-        const id = crypto.randomUUID();
+        const id = nextId();
         const duration = options.duration ?? DEFAULT_DURATION[type];
 
         toasts.value.push({

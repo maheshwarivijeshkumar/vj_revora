@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Domain\Activity\Concerns\HasTimeline;
+use App\Domain\Documents\Concerns\HasDocuments;
 use App\Domain\Tenancy\Concerns\BelongsToTenant;
 use App\Domain\Tenancy\TenantContext;
 use App\Observers\AuditObserver;
@@ -42,7 +44,7 @@ use Illuminate\Support\Str;
 final class Contact extends Model
 {
     /** @use HasFactory<ContactFactory> */
-    use BelongsToTenant, HasFactory, SoftDeletes;
+    use BelongsToTenant, HasDocuments, HasFactory, HasTimeline, SoftDeletes;
 
     protected $guarded = [];
 
