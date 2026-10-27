@@ -160,7 +160,9 @@ final class SearchService
                     number_format((float) $deal->value).' '.$deal->currency,
                 ]),
                 badge: $deal->status->label(),
-                href: '/deals',
+                // Straight to the record; the board was the stand-in while
+                // there was no detail screen to open.
+                href: '/deals/'.$deal->id,
             ))
             ->all();
 

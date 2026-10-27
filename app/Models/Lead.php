@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Domain\Activity\Concerns\HasTimeline;
 use App\Domain\Contact\PhoneNumber;
+use App\Domain\Documents\Concerns\HasDocuments;
 use App\Domain\Leads\Enums\LeadStatus;
 use App\Domain\Leads\Enums\ScoreBand;
 use App\Domain\Leads\Enums\VerificationStatus;
@@ -61,12 +63,17 @@ use Illuminate\Support\Str;
  * @property int|null $verification_confidence
  * @property list<array{check: string, verdict: string, detail: string}>|null $verification_findings
  * @property CarbonInterface|null $verified_at
+ * @property int|null $engagement_score
+ * @property string|null $engagement_reason
+ * @property CarbonInterface|null $engagement_scored_at
+ * @property CarbonInterface|null $email_opted_out_at
+ * @property CarbonInterface|null $whatsapp_opted_out_at
  */
 #[ObservedBy([LeadObserver::class, AuditObserver::class])]
 final class Lead extends Model
 {
     /** @use HasFactory<LeadFactory> */
-    use BelongsToTenant, HasFactory, SoftDeletes;
+    use BelongsToTenant, HasDocuments, HasFactory, HasTimeline, SoftDeletes;
 
     /**
      * True while the capture pipeline is still working on this lead.
@@ -292,6 +299,10 @@ final class Lead extends Model
             'verification_status' => VerificationStatus::class,
             'verification_findings' => 'array',
             'verified_at' => 'datetime',
+            'engagement_score' => 'integer',
+            'engagement_scored_at' => 'datetime',
+            'email_opted_out_at' => 'datetime',
+            'whatsapp_opted_out_at' => 'datetime',
         ];
     }
 }

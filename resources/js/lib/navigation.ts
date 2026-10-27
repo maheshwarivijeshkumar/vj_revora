@@ -33,6 +33,12 @@ export const tenantNavigation: NavSection[] = [
                 permission: 'lead.view',
             },
             {
+                label: 'Tenders',
+                href: '/tenders',
+                icon: 'Landmark',
+                permission: 'lead.view',
+            },
+            {
                 label: 'Contacts',
                 href: '/contacts',
                 icon: 'ContactRound',
@@ -117,8 +123,26 @@ export const tenantNavigation: NavSection[] = [
         items: [
             {
                 label: 'Integrations',
-                href: '/integrations',
+                href: '/settings/integrations',
                 icon: 'PlugZap',
+                permission: 'integration.view',
+            },
+            {
+                label: 'Email',
+                href: '/settings/email',
+                icon: 'Mail',
+                permission: 'integration.view',
+            },
+            {
+                label: 'Follow-up',
+                href: '/settings/follow-up',
+                icon: 'Send',
+                permission: 'template.view',
+            },
+            {
+                label: 'WhatsApp',
+                href: '/settings/whatsapp',
+                icon: 'MessageCircle',
                 permission: 'integration.view',
             },
             {

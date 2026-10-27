@@ -186,7 +186,9 @@ it('has tenant_id on every tenant-owned table, and the trait on its model', func
     // genuinely central rather than an oversight.
     $central = ['tenants', 'tenant_domains', 'platform_users', 'plans',
         'plan_features', 'feature_catalog', 'subscriptions', 'audit_logs',
-        'waitlist_signups', 'contact_enquiries'];
+        'waitlist_signups', 'contact_enquiries',
+        // Public procurement notices: the same for every workspace.
+        'tenders'];
 
     $failures = [];
 
@@ -221,7 +223,7 @@ it('indexes tenant_id on every tenant-owned table', function (): void {
     // Without an index, tenant scoping turns every list query into a full
     // table scan once the table is shared by many tenants.
     $tables = ['users', 'teams', 'team_members', 'usage_meters',
-        'usage_records', 'tenant_settings', 'dashboards'];
+        'usage_records', 'tenant_settings', 'dashboards', 'documents'];
 
     $missing = [];
 

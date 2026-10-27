@@ -52,6 +52,8 @@ type LeadRow = {
     status_label: string;
     status_tone: string;
     score: number;
+    engagement_score: number | null;
+    engagement_reason: string | null;
     verification: string;
     verification_label: string;
     verification_tone: string;
@@ -205,6 +207,13 @@ const columns: Column<LeadRow>[] = [
         width: '7rem',
     },
     {
+        key: 'engagement_score',
+        label: 'Reply',
+        sortable: true,
+        numeric: true,
+        width: '6rem',
+    },
+    {
         key: 'verification',
         label: 'Details',
         sortable: true,
@@ -246,6 +255,27 @@ const activeFilterCount = computed(
         (props.filters.score_min !== null ? 1 : 0) +
         (props.filters.score_max !== null ? 1 : 0),
 );
+
+/**
+ * Downloads the list as Excel, with the filters and sort currently applied.
+ *
+ * A plain navigation rather than an Inertia visit: the response is a file, and
+ * the browser handles it as a download without leaving the page.
+ */
+function exportLeads(): void {
+    const query = new URLSearchParams();
+    const { per_page: _perPage, ...filters } = props.filters;
+
+    for (const [key, value] of Object.entries(filters)) {
+        if (Array.isArray(value)) {
+            value.forEach((item) => query.append(`${key}[]`, String(item)));
+        } else if (value !== null && value !== '') {
+            query.append(key, String(value));
+        }
+    }
+
+    window.location.href = `/leads/export?${query.toString()}`;
+}
 
 /**
  * Pushes table state into the URL.
@@ -470,9 +500,14 @@ async function checkProgress(id: string): Promise<void> {
 
     <AppLayout title="Leads" :breadcrumbs="[{ label: 'Leads' }]">
         <template #actions>
-            <Button v-if="can('lead.export')" variant="secondary" size="sm">
+            <Button
+                v-if="can('lead.export')"
+                variant="secondary"
+                size="sm"
+                @click="exportLeads"
+            >
                 <Download class="size-4" />
-                Export
+                Export to Excel
             </Button>
             <Button
                 v-if="can('lead.create')"
@@ -520,9 +555,7 @@ async function checkProgress(id: string): Promise<void> {
                 @update:visible="(keys) => (visible = keys)"
                 @update:density="(value) => (density = value)"
                 @toggle-filters="filtersOpen = !filtersOpen"
-                @export="
-                    toasts.info('Export arrives with the import/export module')
-                "
+                @export="exportLeads"
             />
 
             <!-- Filter panel. Its options are deferred, so it renders a
@@ -863,6 +896,20 @@ async function checkProgress(id: string): Promise<void> {
                     <ScoreBadge :score="row.score" />
                 </template>
 
+                <template #cell:engagement_score="{ row }">
+                    <span
+                        v-if="row.engagement_score !== null"
+                        class="tabular-nums"
+                        :class="
+                            row.engagement_score === 0
+                                ? 'text-muted'
+                                : 'font-medium text-strong'
+                        "
+                        :title="row.engagement_reason ?? undefined"
+                        >{{ row.engagement_score }}/10</span
+                    >
+                    <span v-else class="text-muted">—</span>
+                </template>
                 <template #cell:verification="{ row }">
                     <!-- The reasons are on the row, so the explanation costs no
                          request. §59: a flag nobody can explain gets ignored. -->

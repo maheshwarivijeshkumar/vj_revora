@@ -18,6 +18,7 @@ import { computed, onMounted, ref, type Component } from 'vue';
 import Button from '@/components/ui/Button.vue';
 import ToastHost from '@/components/overlay/ToastHost.vue';
 import { useThemeStore } from '@/stores/theme';
+import { copyText } from '@/lib/clipboard';
 import { useToastStore } from '@/stores/toast';
 
 const props = defineProps<{
@@ -188,16 +189,19 @@ function goBack(): void {
 
 async function copyReference(): Promise<void> {
     if (!props.reference) return;
-    try {
-        await navigator.clipboard.writeText(props.reference);
+    if (await copyText(props.reference)) {
         toasts.success('Reference copied', {
             description: 'Include it when you contact support.',
         });
-    } catch {
-        toasts.error('Could not copy', {
-            description: `Reference: ${props.reference}`,
-        });
+
+        return;
     }
+
+    // The reference itself goes in the message, so it is still obtainable when
+    // the clipboard is not.
+    toasts.error('Could not copy', {
+        description: `Reference: ${props.reference}`,
+    });
 }
 
 const homeHref = computed(() => (props.authenticated ? '/dashboard' : '/'));

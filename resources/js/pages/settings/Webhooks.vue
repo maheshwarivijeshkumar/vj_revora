@@ -18,6 +18,7 @@ import FormField from '@/components/ui/FormField.vue';
 import StatusBadge, { type Tone } from '@/components/ui/StatusBadge.vue';
 import TextInput from '@/components/ui/TextInput.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
+import { copyText } from '@/lib/clipboard';
 import { useToastStore } from '@/stores/toast';
 
 type Endpoint = {
@@ -100,15 +101,16 @@ function toggleEvent(event: string, checked: boolean): void {
 }
 
 async function copySecret(endpoint: Endpoint): Promise<void> {
-    try {
-        await navigator.clipboard.writeText(endpoint.secret);
+    if (await copyText(endpoint.secret)) {
         copied.value = endpoint.id;
         setTimeout(() => (copied.value = null), 2000);
-    } catch {
-        toasts.error('Could not copy', {
-            description: 'Reveal the secret and copy it manually.',
-        });
+
+        return;
     }
+
+    toasts.error('Could not copy', {
+        description: 'Reveal the secret and copy it manually.',
+    });
 }
 
 function togglePaused(endpoint: Endpoint): void {

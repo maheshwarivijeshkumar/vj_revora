@@ -7,6 +7,8 @@ use App\Http\Controllers\Api\V1\ContactController;
 use App\Http\Controllers\Api\V1\DealController;
 use App\Http\Controllers\Api\V1\LeadController;
 use App\Http\Controllers\Api\V1\UsageController;
+use App\Http\Controllers\Webhooks\UnsubscribeController;
+use App\Http\Controllers\Webhooks\WhatsAppWebhookController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -27,6 +29,21 @@ use Illuminate\Support\Facades\Route;
 */
 
 Route::get('/health', fn () => ['status' => 'ok'])->name('api.health');
+
+// --- Inbound callbacks -------------------------------------------------------
+// Called by WhatsApp and by mail clients, not by API-key holders. Each one
+// authenticates itself: Meta signs its webhooks, and the unsubscribe link is
+// a signed URL.
+
+Route::get('/webhooks/whatsapp', [WhatsAppWebhookController::class, 'verify'])
+    ->name('webhooks.whatsapp');
+
+Route::post('/webhooks/whatsapp', [WhatsAppWebhookController::class, 'receive'])
+    ->middleware('throttle:600,1');
+
+Route::match(['get', 'post'], '/unsubscribe/{lead}', UnsubscribeController::class)
+    ->middleware(['signed', 'throttle:60,1'])
+    ->name('unsubscribe');
 
 Route::middleware(['api.key', 'api.log', 'throttle:api'])->group(function (): void {
     // --- Leads --------------------------------------------------------------

@@ -8,6 +8,7 @@ import FormField from '@/components/ui/FormField.vue';
 import StatusBadge from '@/components/ui/StatusBadge.vue';
 import TextInput from '@/components/ui/TextInput.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
+import { copyText } from '@/lib/clipboard';
 import { useToastStore } from '@/stores/toast';
 
 type ApiKeyRow = {
@@ -76,15 +77,19 @@ function toggleScope(scope: string, checked: boolean): void {
 }
 
 async function copyToken(token: string): Promise<void> {
-    try {
-        await navigator.clipboard.writeText(token);
+    if (await copyText(token)) {
         copied.value = true;
         setTimeout(() => (copied.value = false), 2000);
-    } catch {
-        toasts.error('Could not copy', {
-            description: 'Select the key and copy it manually.',
-        });
+
+        return;
     }
+
+    // This is the only time the key is ever shown, so a silent failure here
+    // loses it for good (§48).
+    toasts.error('Could not copy', {
+        description:
+            'Select the key above and copy it before leaving this page.',
+    });
 }
 
 function revoke(key: ApiKeyRow): void {

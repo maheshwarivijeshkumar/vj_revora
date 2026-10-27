@@ -9,7 +9,7 @@ for other environments.
 | -------- | ------- | ------------------------------------------------------------------------- |
 | PHP      | 8.3+    | With `zip`, `pdo_mysql`, `pdo_pgsql`, `gd`, `intl`, `mbstring`, `openssl` |
 | MySQL    | 8.4     | Running on 3306                                                           |
-| Redis    | 5+      | Cache and queue                                                           |
+| Redis    | 5+      | Cache and queue **in production only** — see below                        |
 | Node     | 22+     |                                                                           |
 | Composer | 2       |                                                                           |
 
@@ -66,7 +66,8 @@ Install it as a Windows service if you would rather not start it each session.
 ```bash
 php artisan serve      # http://127.0.0.1:8000
 npm run dev            # Vite dev server
-php artisan queue:work --queue=webhooks,default # Queue worker (Horizon is deployment-only — ADR-011)
+php artisan queue:work --queue=verification,webhooks,integrations,messaging,bulk,default # Queue worker (Horizon is deployment-only — ADR-011)
+php artisan schedule:work # Runs the hourly lead-ads sync (and other scheduled jobs)
 ```
 
 Sign in with the seeded demo workspace:
@@ -284,3 +285,53 @@ entitlement middleware remain authoritative.
 | Horizon, Reverb                                       | ADR-011 — deployment / Phase 3 |
 | PostgreSQL                                            | ADR-008 — before production    |
 | Tenant-qualified sign-in for multi-workspace users    | ADR-010 — before production    |
+
+## Queue and cache locally
+
+`.env` ships with `QUEUE_CONNECTION=database` and `CACHE_STORE=database`, not
+Redis. The database driver needs no extra service and works on a fresh clone,
+which Redis does not: without a server listening on 6379 every dispatch throws
+and the app cannot even boot a console command.
+
+Redis remains the production choice (ADR-011). Switch both values back once a
+server is reachable — the `REDIS_*` settings are already in place.
+
+Jobs run on six named queues, so a worker has to be told about all of them:
+
+```bash
+php artisan queue:work --queue=verification,webhooks,integrations,messaging,bulk,default
+```
+
+Nothing processes `verification` or `webhooks` without that, and the symptom is
+silent: leads stay unverified and subscribers never hear from you, with no error
+anywhere.
+
+## Attachments
+
+Uploads go to `DOCUMENTS_DISK` (`local` by default), which roots at
+`storage/app/private` — outside the web root on purpose. Files come back out
+only through `GET /documents/{uuid}`, which checks the session, the workspace and
+`document.view` first, so there is no public URL to leak and `php artisan
+storage:link` is irrelevant to them.
+
+Removing a document soft deletes the row and leaves the file, so a mistaken
+delete can be undone. The scheduled purge is what eventually clears both:
+
+```bash
+php artisan documents:purge --dry-run     # show what has passed the window
+php artisan documents:purge --days=30     # the default, run daily at 03:30
+```
+
+Without a scheduler running (`php artisan schedule:work`), removed files
+accumulate on disk indefinitely — which matters for §88 erasure, not just space.
+
+## Demo data
+
+```bash
+php artisan migrate:fresh --seed   # rebuilds and seeds; owner@demo.test / password
+```
+
+Seeded leads use the reserved `.example` domains (RFC 2606), which exist so they
+never resolve. The seeder therefore turns off the queued MX re-check for its own
+rows — otherwise every demo lead would be filed as "not usable" and verification
+would look broken on a fresh install.

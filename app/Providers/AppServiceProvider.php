@@ -9,6 +9,7 @@ use App\Domain\Audit\Listeners\RecordDomainAudit;
 use App\Domain\Deals\Events\DealStageChanged;
 use App\Domain\Identity\TenantUserProvider;
 use App\Domain\Leads\Events\LeadCaptured;
+use App\Domain\Messaging\Listeners\StartLeadOutreach;
 use App\Domain\Tenancy\TenantContext;
 use App\Domain\Webhooks\Listeners\SendDealWebhooks;
 use App\Domain\Webhooks\Listeners\SendLeadWebhooks;
@@ -67,6 +68,7 @@ final class AppServiceProvider extends ServiceProvider
     private function registerDomainListeners(): void
     {
         Event::listen(LeadCaptured::class, SendLeadWebhooks::class);
+        Event::listen(LeadCaptured::class, StartLeadOutreach::class);
         Event::listen(DealStageChanged::class, SendDealWebhooks::class);
 
         Event::listen(Login::class, [RecordAccessAudit::class, 'handleLogin']);
