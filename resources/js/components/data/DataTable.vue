@@ -33,11 +33,17 @@ const props = withDefaults(
         /** Set when a request failed, so the table can offer a retry (§114). */
         error?: string | null;
         rowKeyLabel?: (row: TRow) => string;
+        /** Off for lists that have nothing to act on in bulk. */
+        selectable?: boolean;
+        /** Off when a row has no action. */
+        actions?: boolean;
     }>(),
     {
         loading: false,
         density: 'default',
         error: null,
+        selectable: true,
+        actions: true,
         sort: undefined,
         direction: 'desc',
     },
@@ -77,6 +83,10 @@ const PADDING: Record<Density, string> = {
 };
 
 const cellPadding = computed(() => PADDING[props.density]);
+
+const span = computed(
+    () => shown.value.length + (props.selectable ? 1 : 0) + (props.actions ? 1 : 0),
+);
 
 function toggleAll(checked: boolean): void {
     emit('update:selected', checked ? props.rows.map((row) => row.id) : []);
@@ -127,7 +137,11 @@ function ariaSort(column: Column<TRow>): 'ascending' | 'descending' | 'none' {
                     <tr class="border-b border-border bg-surface-alt">
                         <!-- Row selection is always the first column where
                              bulk actions exist (§110.1). -->
-                        <th scope="col" :class="cn(cellPadding, 'w-10')">
+                        <th
+                            v-if="selectable"
+                            scope="col"
+                            :class="cn(cellPadding, 'w-10')"
+                        >
                             <Checkbox
                                 id="dt-select-all"
                                 :model-value="allSelected"
@@ -154,7 +168,7 @@ function ariaSort(column: Column<TRow>): 'ascending' | 'descending' | 'none' {
                             :class="
                                 cn(
                                     cellPadding,
-                                    'text-[0.78rem] font-semibold whitespace-nowrap text-muted',
+                                    'text-[0.75rem] font-semibold tracking-wide whitespace-nowrap text-muted uppercase',
                                     column.numeric && 'text-right',
                                     column.secondary && 'hidden lg:table-cell',
                                 )
@@ -187,6 +201,7 @@ function ariaSort(column: Column<TRow>): 'ascending' | 'descending' | 'none' {
                         </th>
 
                         <th
+                            v-if="actions"
                             scope="col"
                             :class="cn(cellPadding, 'w-20 text-right')"
                         >
@@ -203,7 +218,7 @@ function ariaSort(column: Column<TRow>): 'ascending' | 'descending' | 'none' {
                         :key="`skeleton-${n}`"
                         class="border-b border-border-soft last:border-0"
                     >
-                        <td :class="cellPadding">
+                        <td v-if="selectable" :class="cellPadding">
                             <Skeleton class="size-5" />
                         </td>
                         <td
@@ -223,19 +238,19 @@ function ariaSort(column: Column<TRow>): 'ascending' | 'descending' | 'none' {
                                 "
                             />
                         </td>
-                        <td :class="cellPadding">
+                        <td v-if="actions" :class="cellPadding">
                             <Skeleton class="ml-auto h-4 w-10" />
                         </td>
                     </tr>
 
                     <tr v-else-if="error">
-                        <td :colspan="shown.length + 2" class="px-4 py-16">
+                        <td :colspan="span" class="px-4 py-16">
                             <slot name="error" :message="error" />
                         </td>
                     </tr>
 
                     <tr v-else-if="rows.length === 0">
-                        <td :colspan="shown.length + 2" class="px-4 py-4">
+                        <td :colspan="span" class="px-4 py-4">
                             <slot name="empty" />
                         </td>
                     </tr>
@@ -253,7 +268,7 @@ function ariaSort(column: Column<TRow>): 'ascending' | 'descending' | 'none' {
                             )
                         "
                     >
-                        <td :class="cellPadding" @click.stop>
+                        <td v-if="selectable" :class="cellPadding" @click.stop>
                             <Checkbox
                                 :id="`dt-row-${row.id}`"
                                 :model-value="isSelected(row.id)"
@@ -293,7 +308,11 @@ function ariaSort(column: Column<TRow>): 'ascending' | 'descending' | 'none' {
                             </slot>
                         </td>
 
-                        <td :class="cn(cellPadding, 'text-right')" @click.stop>
+                        <td
+                            v-if="actions"
+                            :class="cn(cellPadding, 'text-right')"
+                            @click.stop
+                        >
                             <slot name="actions" :row="row" />
                         </td>
                     </tr>

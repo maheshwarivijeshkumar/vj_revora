@@ -32,6 +32,7 @@ use App\Http\Controllers\Crm\LeadDetailController;
 use App\Http\Controllers\Crm\LeadExportController;
 use App\Http\Controllers\Crm\LeadWriteController;
 use App\Http\Controllers\Crm\MessageInboxController;
+use App\Http\Controllers\Crm\OperationsBulkController;
 use App\Http\Controllers\Crm\OpportunityController;
 use App\Http\Controllers\Crm\ProjectController;
 use App\Http\Controllers\Crm\ReportController;
@@ -322,6 +323,10 @@ Route::middleware(['auth', 'tenant.active'])->group(function (): void {
     // Approved leads and won deals. The page hides whichever set the user
     // cannot view, and refuses the visit when they can see neither.
     Route::get('/calendar', CalendarController::class)->name('calendar');
+
+    // Confirmed deletes from the operations lists. Permission is checked per resource.
+    Route::post('/operations/bulk-delete', [OperationsBulkController::class, 'destroy'])
+        ->name('operations.bulk-destroy');
 
     // Work that starts when a lead is won: client, project, estimate, invoice.
     Route::get('/clients', [ClientController::class, 'index'])->middleware('permission:company.view')->name('clients.index');

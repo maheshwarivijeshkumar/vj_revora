@@ -14,7 +14,11 @@ const props = defineProps<{
     action: string;
     clients: ClientOption[];
     submitLabel: string;
+    /** Drops the card chrome when the form sits inside a drawer. */
+    plain?: boolean;
 }>();
+
+const emit = defineEmits<{ saved: [] }>();
 
 const form = useForm({
     client_id: '',
@@ -50,12 +54,22 @@ const clientOptions = computed(() =>
 );
 
 function submit(): void {
-    form.post(props.action);
+    form.post(props.action, {
+        preserveScroll: true,
+        onSuccess: () => {
+            form.reset();
+            emit('saved');
+        },
+    });
 }
 </script>
 
 <template>
-    <form class="space-y-3 rounded-xl border border-border bg-surface p-4" @submit.prevent="submit">
+    <form
+        class="space-y-3"
+        :class="plain ? '' : 'rounded-xl border border-border bg-surface p-4'"
+        @submit.prevent="submit"
+    >
         <div class="grid gap-3 sm:grid-cols-2">
             <FormField id="priced-client" label="Client" required :error="form.errors.client_id">
                 <SelectMenu

@@ -1,10 +1,25 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
+import { computed } from 'vue';
+import type { Column } from '@/components/data/DataTable.vue';
+import RecordList from '@/components/data/RecordList.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 
-defineProps<{
-    cards: { label: string; value: string; href: string }[];
+type Card = { label: string; value: string; href: string };
+type ReportRow = Card & { id: number };
+
+const props = defineProps<{
+    cards: Card[];
 }>();
+
+const rows = computed<ReportRow[]>(() =>
+    props.cards.map((card, index) => ({ id: index + 1, ...card })),
+);
+
+const columns: Column<ReportRow>[] = [
+    { key: 'label', label: 'Report' },
+    { key: 'value', label: 'Value', numeric: true },
+];
 </script>
 
 <template>
@@ -16,17 +31,27 @@ defineProps<{
                 Clients, open work, and the money still owed. Each number opens the list behind it.
             </p>
 
-            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                <Link
-                    v-for="card in cards"
-                    :key="card.label"
-                    :href="card.href"
-                    class="rounded-xl border border-border bg-surface p-4 hover:border-primary-600"
-                >
-                    <p class="text-[0.82rem] text-muted">{{ card.label }}</p>
-                    <p class="mt-1 text-h3 font-semibold tabular-nums text-strong">{{ card.value }}</p>
-                </Link>
-            </div>
+            <RecordList
+                :rows="rows"
+                :columns="columns"
+                noun="report"
+                plural="reports"
+                placeholder="Search reports"
+                empty-title="No reports yet"
+                empty-description="Numbers appear here once clients, projects, and invoices exist."
+                :row-key-label="(row) => row.label"
+            >
+                <template #cell:label="{ row }">
+                    <Link :href="row.href" class="font-medium text-strong hover:underline">
+                        {{ row.label }}
+                    </Link>
+                </template>
+                <template #actions="{ row }">
+                    <Link :href="row.href" class="text-[0.85rem] font-medium text-primary-600 hover:underline">
+                        Open
+                    </Link>
+                </template>
+            </RecordList>
         </div>
     </AppLayout>
 </template>

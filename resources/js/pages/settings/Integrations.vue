@@ -1,15 +1,7 @@
 <script setup lang="ts">
 import { useClock } from '@/composables/useClock';
 import { Head, router } from '@inertiajs/vue3';
-import {
-    Facebook,
-    Instagram,
-    Linkedin,
-    PlugZap,
-    RefreshCw,
-    Trash2,
-    TriangleAlert,
-} from 'lucide-vue-next';
+import { PlugZap, RefreshCw, Trash2, TriangleAlert } from 'lucide-vue-next';
 import { computed } from 'vue';
 import IntegrationKeyForm from '@/components/settings/IntegrationKeyForm.vue';
 import WhatsAppSettings from '@/components/settings/WhatsAppSettings.vue';
@@ -115,9 +107,13 @@ function credentialFor(provider: string) {
     return props.credentials.find((item) => item.provider === provider);
 }
 
-const otherCredentials = computed(() =>
-    props.credentials.filter(
-        (item) => !props.platforms.some((platform) => platform.key === item.provider),
+const whatsappCredential = computed(() =>
+    props.credentials.find((item) => item.provider === 'whatsapp'),
+);
+
+const mailboxCredentials = computed(() =>
+    props.credentials.filter((item) =>
+        ['google', 'microsoft', 'upwork'].includes(item.provider),
     ),
 );
 function connect(platform: Platform): void {
@@ -195,86 +191,63 @@ function formatDate(value: string | null): string {
         title="Integrations"
         :breadcrumbs="[{ label: 'Settings' }, { label: 'Integrations' }]"
     >
-        <div class="space-y-4">
+        <div class="space-y-8">
             <p class="max-w-3xl text-[0.9rem] text-muted">
-                Choose Enabled on a network and enter its required keys. Save
-                stays off until those keys are filled. WhatsApp, Google,
-                Microsoft and Upwork are on this same page. The first lead-ad
-                sync imports the last {{ lookbackDays }} days.
+                Provider credentials. Values saved here override the server
+                environment. Secrets are write-only and never shown again.
             </p>
 
             <section
-                v-for="platform in platforms"
-                :key="platform.key"
-                class="rounded-xl border border-border bg-surface p-5"
+                class="grid items-start gap-x-10 gap-y-4 lg:grid-cols-[15.5rem_minmax(0,1fr)]"
             >
-                <div class="flex flex-wrap items-start justify-between gap-3">
-                    <div class="flex min-w-0 items-start gap-3">
-                        <span
-                            class="flex size-10 shrink-0 items-center justify-center rounded-lg bg-surface-alt text-strong"
-                            aria-hidden="true"
-                        >
-                            <template v-if="platform.key === 'meta'">
-                                <Facebook class="size-5" />
-                            </template>
-                            <Linkedin v-else class="size-5" />
-                        </span>
-                        <div class="min-w-0">
-                            <h2
-                                class="flex items-center gap-1.5 text-[0.98rem] font-semibold text-strong"
-                            >
-                                {{ platform.label }}
-                                <Instagram
-                                    v-if="platform.key === 'meta'"
-                                    class="size-4 text-muted"
-                                    aria-hidden="true"
-                                />
-                            </h2>
-                            <p class="mt-0.5 text-[0.85rem] text-muted">
-                                <template v-if="platform.key === 'meta'">
-                                    Connect a Facebook Page. Its Facebook and
-                                    Instagram lead ads both come through.
-                                </template>
-                                <template v-else>
-                                    Connect a LinkedIn ad account to import its
-                                    Lead Gen Form responses.
-                                </template>
-                            </p>
-                        </div>
-                    </div>
-
-                    <Button
-                        v-if="can('integration.connect') && platform.configured"
-                        variant="primary"
-                        size="sm"
-                        @click="connect(platform)"
-                    >
-                        <PlugZap class="size-4" />
-                        {{
-                            connectionsByPlatform[platform.key]?.length
-                                ? 'Connect another'
-                                : 'Connect'
-                        }}
-                    </Button>
+                <div>
+                    <h2 class="text-[0.95rem] font-semibold text-strong">
+                        Lead ads
+                    </h2>
+                    <p class="mt-1 text-[0.85rem] leading-relaxed text-muted">
+                        Switch on a network, enter its app ID and secret, then
+                        connect the account. The first sync imports the last
+                        {{ lookbackDays }} days.
+                    </p>
                 </div>
+                <div class="space-y-3">
+                    <IntegrationKeyForm
+                        v-for="platform in platforms"
+                        :key="platform.key"
+                        :credential="credentialFor(platform.key)!"
+                        :can-save="can('integration.connect')"
+                    >
+                        <div
+                            v-if="can('integration.connect') && platform.configured"
+                            class="flex justify-end"
+                        >
+                            <Button
+                                variant="primary"
+                                size="sm"
+                                @click="connect(platform)"
+                            >
+                                <PlugZap class="size-4" />
+                                {{
+                                    connectionsByPlatform[platform.key]?.length
+                                        ? 'Connect another'
+                                        : 'Connect'
+                                }}
+                            </Button>
+                        </div>
+                        <p
+                            v-else-if="
+                                !can('integration.connect') && !platform.configured
+                            "
+                            class="text-[0.85rem] text-muted"
+                        >
+                            An administrator needs to turn this on and save the
+                            keys before anyone can connect.
+                        </p>
 
-                <IntegrationKeyForm
-                    v-if="credentialFor(platform.key) && can('integration.connect')"
-                    :credential="credentialFor(platform.key)!"
-                    :can-save="can('integration.connect')"
-                />
-                <p
-                    v-else-if="!platform.configured"
-                    class="mt-4 text-[0.85rem] text-muted"
-                >
-                    An administrator needs to save this network's app ID and
-                    secret before anyone can connect.
-                </p>
-
-                <ul
-                    v-if="connectionsByPlatform[platform.key]?.length"
-                    class="mt-4 divide-y divide-border rounded-lg border border-border"
-                >
+                        <ul
+                            v-if="connectionsByPlatform[platform.key]?.length"
+                            class="mt-3 divide-y divide-border rounded-lg border border-border"
+                        >
                     <li
                         v-for="connection in connectionsByPlatform[
                             platform.key
@@ -368,28 +341,55 @@ function formatDate(value: string | null): string {
                         </p>
                     </li>
                 </ul>
+                    </IntegrationKeyForm>
+                </div>
             </section>
 
             <section
-                v-for="credential in otherCredentials"
-                :key="credential.provider"
-                class="rounded-xl border border-border bg-surface p-5"
+                v-if="whatsappCredential"
+                class="grid items-start gap-x-10 gap-y-4 lg:grid-cols-[15.5rem_minmax(0,1fr)]"
             >
-                <h2 class="text-[0.98rem] font-semibold text-strong">
-                    {{ credential.label }}
-                </h2>
+                <div>
+                    <h2 class="text-[0.95rem] font-semibold text-strong">
+                        WhatsApp
+                    </h2>
+                    <p class="mt-1 text-[0.85rem] leading-relaxed text-muted">
+                        Turn on WhatsApp Business, save the app secret and
+                        verify token, then connect the business number used for
+                        lead replies.
+                    </p>
+                </div>
                 <IntegrationKeyForm
-                    v-if="can('integration.connect')"
-                    :credential="credential"
-                    :can-save="true"
-                />
-                <div
-                    v-if="credential.provider === 'whatsapp' && credential.enabled"
-                    class="mt-5 border-t border-border pt-5"
+                    :credential="whatsappCredential"
+                    :can-save="can('integration.connect')"
                 >
                     <WhatsAppSettings
+                        class="mt-4 border-t border-border pt-4"
                         :account="whatsapp.account"
                         :webhook="whatsapp.webhook"
+                    />
+                </IntegrationKeyForm>
+            </section>
+
+            <section
+                class="grid items-start gap-x-10 gap-y-4 lg:grid-cols-[15.5rem_minmax(0,1fr)]"
+            >
+                <div>
+                    <h2 class="text-[0.95rem] font-semibold text-strong">
+                        Mail and marketplaces
+                    </h2>
+                    <p class="mt-1 text-[0.85rem] leading-relaxed text-muted">
+                        Google and Microsoft sign in mail. Upwork reads job
+                        posts. The Places key is only used when finding
+                        businesses.
+                    </p>
+                </div>
+                <div class="space-y-3">
+                    <IntegrationKeyForm
+                        v-for="credential in mailboxCredentials"
+                        :key="credential.provider"
+                        :credential="credential"
+                        :can-save="can('integration.connect')"
                     />
                 </div>
             </section>
