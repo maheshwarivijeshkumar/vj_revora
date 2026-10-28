@@ -1,15 +1,24 @@
 <script setup lang="ts">
-import { Head, router, useForm } from '@inertiajs/vue3';
-import { Trash2 } from 'lucide-vue-next';
+import { Head, useForm } from '@inertiajs/vue3';
+import { computed, ref, watch } from 'vue';
+import type { Column } from '@/components/data/DataTable.vue';
+import RecordList from '@/components/data/RecordList.vue';
+import Drawer from '@/components/overlay/Drawer.vue';
 import Button from '@/components/ui/Button.vue';
-import EmptyState from '@/components/ui/EmptyState.vue';
 import FormField from '@/components/ui/FormField.vue';
 import TextInput from '@/components/ui/TextInput.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { useAuthorization } from '@/composables/useAuthorization';
 
 type Field = { key: string; label: string; required?: boolean; type?: string };
-type Row = { id: number; name: string; detail: string | null; phone: string | null; email: string | null; extra: string | null };
+type Row = {
+    id: number;
+    name: string;
+    detail: string | null;
+    phone: string | null;
+    email: string | null;
+    extra: string | null;
+};
 
 const props = defineProps<{
     kind: 'crew' | 'subcontractors' | 'materials';
@@ -20,23 +29,73 @@ const props = defineProps<{
 }>();
 
 const { can } = useAuthorization();
+const creating = ref(false);
 
-const canCreate = props.kind === 'materials' ? can('product.create') : can('company.create');
-const canDelete = props.kind === 'materials' ? can('product.delete') : can('company.delete');
+const columns: Column<Row>[] = [
+    { key: 'name', label: 'Name' },
+    { key: 'detail', label: 'Detail' },
+    { key: 'extra', label: 'Extra', secondary: true },
+    { key: 'phone', label: 'Phone' },
+    { key: 'email', label: 'Email', secondary: true },
+];
 
-const initial: Record<string, string> = {};
-for (const field of props.fields) {
-    initial[field.key] = field.key === 'unit' ? 'each' : '';
+const canCreate = computed(() => (props.kind === 'materials' ? can('product.create') : can('company.create')));
+const canDelete = computed(() => (props.kind === 'materials' ? can('product.delete') : can('company.delete')));
+
+const noun = computed(() => {
+    if (props.kind === 'crew') {
+        return 'crew member';
+    }
+
+    if (props.kind === 'materials') {
+        return 'material';
+    }
+
+    return 'subcontractor';
+});
+
+const plural = computed(() => {
+    if (props.kind === 'crew') {
+        return 'crew members';
+    }
+
+    if (props.kind === 'materials') {
+        return 'materials';
+    }
+
+    return 'subcontractors';
+});
+
+function blank(): Record<string, string> {
+    const values: Record<string, string> = {};
+
+    for (const field of props.fields) {
+        values[field.key] = field.key === 'unit' ? 'each' : '';
+    }
+
+    return values;
 }
 
-const form = useForm(initial);
+const form = useForm(blank());
+
+watch(
+    () => props.kind,
+    () => {
+        form.defaults(blank());
+        form.reset();
+        form.clearErrors();
+        creating.value = false;
+    },
+);
 
 function create(): void {
-    form.post(`/${props.kind}`, { preserveScroll: true, onSuccess: () => form.reset() });
-}
-
-function remove(id: number): void {
-    router.delete(`/${props.kind}/${id}`, { preserveScroll: true });
+    form.post(`/${props.kind}`, {
+        preserveScroll: true,
+        onSuccess: () => {
+            form.reset();
+            creating.value = false;
+        },
+    });
 }
 </script>
 
@@ -44,10 +103,54 @@ function remove(id: number): void {
     <Head :title="title" />
 
     <AppLayout :title="title" :breadcrumbs="[{ label: title }]">
+        <template #actions>
+            <Button v-if="canCreate" type="button" @click="creating = true">
+                New {{ noun }}
+            </Button>
+        </template>
+
         <div class="space-y-4">
             <p class="max-w-3xl text-[0.88rem] text-muted">{{ intro }}</p>
 
-            <form v-if="canCreate" class="grid gap-3 rounded-xl border border-border bg-surface p-4 sm:grid-cols-2" @submit.prevent="create">
+            <RecordList
+                :rows="rows"
+                :columns="columns"
+                :resource="kind"
+                :can-delete="canDelete"
+                :noun="noun"
+                :plural="plural"
+                :placeholder="`Search ${plural}`"
+                :empty-title="`No ${plural} yet`"
+                empty-description="Add the first one with the button above."
+                :row-key-label="(row) => row.name"
+            >
+                <template #cell:name="{ row }">
+                    <span class="font-medium text-strong">{{ row.name }}</span>
+                </template>
+                <template #cell:detail="{ row }">
+                    {{ row.detail ?? '—' }}
+                </template>
+                <template #cell:extra="{ row }">
+                    {{ row.extra ?? '—' }}
+                </template>
+                <template #cell:phone="{ row }">
+                    {{ row.phone ?? '—' }}
+                </template>
+                <template #cell:email="{ row }">
+                    {{ row.email ?? '—' }}
+                </template>
+            </RecordList>
+        </div>
+
+        <Drawer
+            :open="creating"
+            :title="`New ${noun}`"
+            description="The list stays where it is while you fill this in."
+            size="lg"
+            :busy="form.processing"
+            @close="creating = false"
+        >
+            <form class="grid gap-4 sm:grid-cols-2" @submit.prevent="create">
                 <FormField
                     v-for="field in fields"
                     :id="`${kind}-${field.key}`"
@@ -64,32 +167,9 @@ function remove(id: number): void {
                     />
                 </FormField>
                 <div class="sm:col-span-2">
-                    <Button type="submit" :disabled="form.processing">Add</Button>
+                    <Button type="submit" :loading="form.processing">Add</Button>
                 </div>
             </form>
-
-            <EmptyState v-if="rows.length === 0" :title="`No ${title.toLowerCase()} yet`" description="Add the first one above." />
-
-            <ul v-else class="divide-y divide-border overflow-hidden rounded-xl border border-border">
-                <li v-for="row in rows" :key="row.id" class="flex flex-wrap items-center justify-between gap-3 bg-surface px-4 py-3">
-                    <div>
-                        <p class="font-medium text-strong">{{ row.name }}</p>
-                        <p class="text-[0.85rem] text-muted">
-                            {{ [row.detail, row.extra, row.phone, row.email].filter(Boolean).join(' · ') || '—' }}
-                        </p>
-                    </div>
-                    <Button
-                        v-if="canDelete"
-                        type="button"
-                        variant="danger"
-                        size="icon"
-                        :aria-label="`Remove ${row.name}`"
-                        @click="remove(row.id)"
-                    >
-                        <Trash2 class="size-4" />
-                    </Button>
-                </li>
-            </ul>
-        </div>
+        </Drawer>
     </AppLayout>
 </template>

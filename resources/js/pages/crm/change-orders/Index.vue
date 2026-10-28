@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { Head, Link, useForm } from '@inertiajs/vue3';
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
+import type { Column } from '@/components/data/DataTable.vue';
+import RecordList from '@/components/data/RecordList.vue';
+import Drawer from '@/components/overlay/Drawer.vue';
 import Button from '@/components/ui/Button.vue';
-import EmptyState from '@/components/ui/EmptyState.vue';
 import FormField from '@/components/ui/FormField.vue';
 import SelectMenu from '@/components/ui/SelectMenu.vue';
 import StatusBadge from '@/components/ui/StatusBadge.vue';
@@ -27,16 +29,22 @@ const props = defineProps<{
     projects: { id: number; name: string; client: string | null }[];
 }>();
 
+const { can } = useAuthorization();
+const creating = ref(false);
+
+const columns: Column<Order>[] = [
+    { key: 'number', label: 'Order' },
+    { key: 'project', label: 'Project' },
+    { key: 'amount', label: 'Amount', numeric: true },
+    { key: 'status_label', label: 'Status' },
+];
+
 const projectOptions = computed(() =>
     props.projects.map((project) => ({
         value: String(project.id),
-        label: project.client
-            ? `${project.name} · ${project.client}`
-            : project.name,
+        label: project.client ? `${project.name} · ${project.client}` : project.name,
     })),
 );
-
-const { can } = useAuthorization();
 
 const form = useForm({
     project_id: '',
@@ -46,7 +54,13 @@ const form = useForm({
 });
 
 function create(): void {
-    form.post('/change-orders', { preserveScroll: true, onSuccess: () => form.reset('title', 'amount', 'reason') });
+    form.post('/change-orders', {
+        preserveScroll: true,
+        onSuccess: () => {
+            form.reset('title', 'amount', 'reason');
+            creating.value = false;
+        },
+    });
 }
 
 function money(value: string): string {
@@ -58,12 +72,55 @@ function money(value: string): string {
     <Head title="Change orders" />
 
     <AppLayout title="Change orders" :breadcrumbs="[{ label: 'Change orders' }]">
+        <template #actions>
+            <Button v-if="can('quote.create')" type="button" @click="creating = true">
+                New change order
+            </Button>
+        </template>
+
         <div class="space-y-4">
             <p class="max-w-3xl text-[0.88rem] text-muted">
                 Extra work or a price change on a project, after the original estimate.
             </p>
 
-            <form v-if="can('quote.create')" class="grid items-start gap-4 rounded-xl border border-border bg-surface p-4 sm:grid-cols-2" @submit.prevent="create">
+            <RecordList
+                :rows="orders"
+                :columns="columns"
+                resource="change-orders"
+                :can-delete="can('quote.delete')"
+                noun="change order"
+                plural="change orders"
+                placeholder="Search change orders"
+                empty-title="No change orders"
+                empty-description="Open a project, then record a change here."
+                :row-key-label="(row) => row.number"
+            >
+                <template #cell:number="{ row }">
+                    <p class="font-medium text-strong">{{ row.number }}</p>
+                    <p class="text-muted">{{ row.title }}</p>
+                </template>
+                <template #cell:project="{ row }">
+                    <Link :href="`/projects/${row.project_id}`" class="hover:underline">{{ row.project }}</Link>
+                    <p class="text-muted">{{ row.client }}</p>
+                </template>
+                <template #cell:amount="{ row }">
+                    {{ money(row.amount) }}
+                </template>
+                <template #cell:status_label="{ row }">
+                    <StatusBadge :tone="row.status_tone as never" :label="row.status_label" />
+                </template>
+            </RecordList>
+        </div>
+
+        <Drawer
+            :open="creating"
+            title="New change order"
+            description="The list stays where it is while you record the change."
+            size="lg"
+            :busy="form.processing"
+            @close="creating = false"
+        >
+            <form class="grid items-start gap-4 sm:grid-cols-2" @submit.prevent="create">
                 <FormField id="co-project" label="Project" required :error="form.errors.project_id">
                     <SelectMenu
                         id="co-project"
@@ -83,37 +140,6 @@ function money(value: string): string {
                     <Button type="submit" :loading="form.processing">Add change order</Button>
                 </div>
             </form>
-
-            <EmptyState v-if="orders.length === 0" title="No change orders" description="Open a project, then record a change here." />
-
-            <div v-else class="overflow-hidden rounded-xl border border-border bg-surface">
-                <table class="w-full text-left text-[0.9rem]">
-                    <thead class="border-b border-border bg-surface-alt text-[0.75rem] font-semibold tracking-wide text-muted uppercase">
-                        <tr>
-                            <th class="px-4 py-3">Order</th>
-                            <th class="px-4 py-3">Project</th>
-                            <th class="px-4 py-3">Amount</th>
-                            <th class="px-4 py-3">Status</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-border">
-                        <tr v-for="order in orders" :key="order.id" class="hover:bg-surface-alt">
-                            <td class="px-4 py-3">
-                                <p class="font-medium text-strong">{{ order.number }}</p>
-                                <p class="text-muted">{{ order.title }}</p>
-                            </td>
-                            <td class="px-4 py-3">
-                                <Link :href="`/projects/${order.project_id}`" class="hover:underline">{{ order.project }}</Link>
-                                <p class="text-muted">{{ order.client }}</p>
-                            </td>
-                            <td class="px-4 py-3 tabular-nums">{{ money(order.amount) }}</td>
-                            <td class="px-4 py-3">
-                                <StatusBadge :tone="order.status_tone as never" :label="order.status_label" />
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
+        </Drawer>
     </AppLayout>
 </template>

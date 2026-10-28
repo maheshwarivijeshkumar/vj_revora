@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import { useClock } from '@/composables/useClock';
 import { Head, Link } from '@inertiajs/vue3';
-import EmptyState from '@/components/ui/EmptyState.vue';
+import type { Column } from '@/components/data/DataTable.vue';
+import RecordList from '@/components/data/RecordList.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
+import { useAuthorization } from '@/composables/useAuthorization';
 
 const { timeZone } = useClock();
+
 type FileRow = {
     id: number;
     title: string;
@@ -17,6 +20,16 @@ type FileRow = {
 };
 
 defineProps<{ documents: FileRow[] }>();
+
+const { can } = useAuthorization();
+
+const columns: Column<FileRow>[] = [
+    { key: 'title', label: 'File' },
+    { key: 'subject', label: 'Attached to' },
+    { key: 'size_bytes', label: 'Size', numeric: true },
+    { key: 'uploader', label: 'Added by', secondary: true },
+    { key: 'created_at', label: 'Added' },
+];
 
 function size(bytes: number): string {
     if (bytes < 1024) {
@@ -31,7 +44,12 @@ function when(value: string | null): string {
         return '—';
     }
 
-    return new Date(value).toLocaleDateString(undefined, { timeZone: timeZone.value, day: 'numeric', month: 'short', year: 'numeric' });
+    return new Date(value).toLocaleDateString(undefined, {
+        timeZone: timeZone.value,
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+    });
 }
 </script>
 
@@ -44,16 +62,34 @@ function when(value: string | null): string {
                 Files already attached to leads and deals. Open one to download it.
             </p>
 
-            <EmptyState v-if="documents.length === 0" title="No documents yet" description="Attach a file on a lead or a deal and it will show up here." />
-
-            <ul v-else class="divide-y divide-border overflow-hidden rounded-xl border border-border">
-                <li v-for="file in documents" :key="file.id" class="bg-surface px-4 py-3">
-                    <Link :href="file.href" class="font-medium text-strong hover:underline">{{ file.title }}</Link>
-                    <p class="text-[0.85rem] text-muted">
-                        {{ [file.subject, file.uploader, size(file.size_bytes), when(file.created_at)].filter(Boolean).join(' · ') }}
-                    </p>
-                </li>
-            </ul>
+            <RecordList
+                :rows="documents"
+                :columns="columns"
+                resource="documents"
+                :can-delete="can('document.delete')"
+                noun="document"
+                plural="documents"
+                placeholder="Search documents"
+                empty-title="No documents yet"
+                empty-description="Attach a file on a lead or a deal and it will show up here."
+                :row-key-label="(row) => row.title"
+            >
+                <template #cell:title="{ row }">
+                    <Link :href="row.href" class="font-medium text-strong hover:underline">{{ row.title }}</Link>
+                </template>
+                <template #cell:subject="{ row }">
+                    {{ row.subject ?? '—' }}
+                </template>
+                <template #cell:size_bytes="{ row }">
+                    {{ size(row.size_bytes) }}
+                </template>
+                <template #cell:uploader="{ row }">
+                    {{ row.uploader ?? '—' }}
+                </template>
+                <template #cell:created_at="{ row }">
+                    {{ when(row.created_at) }}
+                </template>
+            </RecordList>
         </div>
     </AppLayout>
 </template>
