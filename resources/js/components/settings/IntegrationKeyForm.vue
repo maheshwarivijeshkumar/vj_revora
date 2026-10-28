@@ -33,10 +33,7 @@ const form = useForm({
 });
 
 const keysReady = computed(() => {
-    if (
-        props.credential.client_id_required &&
-        form.client_id.trim() === ''
-    ) {
+    if (props.credential.client_id_required && form.client_id.trim() === '') {
         return false;
     }
 
@@ -59,10 +56,25 @@ const keysReady = computed(() => {
     return true;
 });
 
-const blocked = computed(() => form.enabled && !keysReady.value);
+const needsKeys = computed(
+    () => form.enabled && (!keysReady.value || !props.credential.enabled),
+);
+
+function toggle(): void {
+    if (!props.canSave || form.processing) {
+        return;
+    }
+
+    const next = !form.enabled;
+    form.enabled = next;
+
+    if (!next && props.credential.enabled) {
+        save();
+    }
+}
 
 function save(): void {
-    if (blocked.value) {
+    if (form.enabled && !keysReady.value) {
         return;
     }
 
@@ -74,62 +86,73 @@ function save(): void {
 </script>
 
 <template>
-    <form class="mt-4" novalidate @submit.prevent="save">
-        <fieldset>
-            <legend class="text-[0.8125rem] font-medium text-strong">
-                Status
-            </legend>
-            <div
-                class="mt-1.5 inline-flex rounded-lg border border-border bg-surface-alt p-0.5"
-                role="radiogroup"
-                :aria-label="`${credential.label} status`"
-            >
-                <label
-                    class="cursor-pointer rounded-md px-3 py-1.5 text-[0.85rem] font-medium"
-                    :class="
-                        form.enabled
-                            ? 'text-muted'
-                            : 'bg-surface text-strong shadow-sm'
-                    "
-                >
-                    <input
-                        v-model="form.enabled"
-                        class="sr-only"
-                        type="radio"
-                        :name="`${credential.provider}-status`"
-                        :value="false"
-                    />
-                    Disabled
-                </label>
-                <label
-                    class="cursor-pointer rounded-md px-3 py-1.5 text-[0.85rem] font-medium"
-                    :class="
-                        form.enabled
-                            ? 'bg-primary-600 text-white shadow-sm'
-                            : 'text-muted'
-                    "
-                >
-                    <input
-                        v-model="form.enabled"
-                        class="sr-only"
-                        type="radio"
-                        :name="`${credential.provider}-status`"
-                        :value="true"
-                    />
-                    Enabled
-                </label>
+    <div class="rounded-xl border border-border bg-surface px-5 py-4">
+        <div class="flex items-start justify-between gap-4">
+            <div class="min-w-0">
+                <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
+                    <h3 class="text-[0.95rem] font-semibold text-strong">
+                        {{ credential.label }}
+                    </h3>
+                    <span
+                        v-if="!form.enabled"
+                        class="text-[0.82rem] text-muted"
+                    >
+                        Off
+                    </span>
+                    <span
+                        v-else-if="needsKeys"
+                        class="inline-flex items-center gap-1.5 text-[0.82rem] text-warning"
+                    >
+                        <span
+                            class="size-1.5 rounded-full bg-warning"
+                            aria-hidden="true"
+                        />
+                        Enabled · needs keys
+                    </span>
+                    <span v-else class="text-[0.82rem] text-primary-400">
+                        Enabled
+                    </span>
+                </div>
+                <p class="mt-1 text-[0.85rem] leading-relaxed text-muted">
+                    {{ credential.hint }}
+                </p>
             </div>
-        </fieldset>
 
-        <template v-if="form.enabled">
-            <p class="mt-4 text-[0.85rem] text-muted">{{ credential.hint }}</p>
-            <code
-                v-if="credential.callback_url"
-                class="mt-2 block truncate rounded-lg border border-border bg-surface-alt px-3 py-2 font-mono text-[0.8rem] text-strong"
-                >{{ credential.callback_url }}</code
+            <button
+                type="button"
+                role="switch"
+                class="relative mt-0.5 h-6 w-11 shrink-0 rounded-full transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600 disabled:opacity-50"
+                :class="form.enabled ? 'bg-primary-600' : 'bg-border-strong'"
+                :aria-checked="form.enabled"
+                :aria-label="`${credential.label} ${form.enabled ? 'enabled' : 'off'}`"
+                :disabled="!canSave || form.processing"
+                @click="toggle"
             >
+                <span
+                    class="absolute top-0.5 size-5 rounded-full bg-white shadow transition-transform"
+                    :class="form.enabled ? 'translate-x-5' : 'translate-x-0.5'"
+                />
+            </button>
+        </div>
 
-            <div class="mt-4 grid items-start gap-4 sm:grid-cols-2">
+        <p v-if="!form.enabled" class="mt-3 text-[0.85rem] text-muted">
+            Turned off. Saved keys are kept and used again when you switch it
+            back on.
+        </p>
+
+        <div v-else class="mt-4 space-y-4 border-t border-border pt-4">
+            <p
+                v-if="credential.callback_url"
+                class="text-[0.82rem] text-muted"
+            >
+                Redirect URL
+                <code
+                    class="mt-1 block truncate rounded-lg border border-border bg-surface-alt px-3 py-2 font-mono text-[0.8rem] text-strong"
+                    >{{ credential.callback_url }}</code
+                >
+            </p>
+
+            <div class="grid items-start gap-4">
                 <FormField
                     v-if="credential.client_id_label"
                     :id="`${credential.provider}-client-id`"
@@ -148,11 +171,13 @@ function save(): void {
                     v-if="credential.secret_label"
                     :id="`${credential.provider}-secret`"
                     :label="credential.secret_label"
-                    :required="credential.secret_required && !credential.secret_set"
+                    :required="
+                        credential.secret_required && !credential.secret_set
+                    "
                     :hint="
                         credential.secret_set
                             ? 'Saved and hidden. Leave blank to keep it.'
-                            : 'Required to enable. Stored encrypted.'
+                            : 'Required. Stored encrypted and not shown again.'
                     "
                     :error="form.errors.client_secret"
                 >
@@ -168,13 +193,15 @@ function save(): void {
                     v-if="credential.api_key_label"
                     :id="`${credential.provider}-api-key`"
                     :label="credential.api_key_label"
-                    :required="credential.api_key_required && !credential.api_key_set"
+                    :required="
+                        credential.api_key_required && !credential.api_key_set
+                    "
                     :optional-label="!credential.api_key_required"
                     :hint="
                         credential.api_key_set
                             ? 'Saved and hidden. Leave blank to keep it.'
                             : credential.api_key_required
-                              ? 'Required to enable. Stored encrypted.'
+                              ? 'Required. Stored encrypted and not shown again.'
                               : 'Optional. Stored encrypted and not shown again.'
                     "
                     :error="form.errors.api_key"
@@ -189,30 +216,22 @@ function save(): void {
                 </FormField>
             </div>
 
-            <p v-if="blocked" class="mt-3 text-[0.85rem] text-danger">
-                Enter every required key before enabling.
-            </p>
-        </template>
-        <p v-else class="mt-3 text-[0.85rem] text-muted">
-            Disabled. This network stays off until you enable it and save the
-            required keys.
-        </p>
+            <div v-if="canSave" class="flex flex-wrap items-center gap-3">
+                <Button
+                    type="button"
+                    size="lg"
+                    :disabled="!keysReady"
+                    :loading="form.processing"
+                    @click="save"
+                >
+                    Save
+                </Button>
+                <p v-if="!keysReady" class="text-[0.82rem] text-muted">
+                    Enter every required key before saving.
+                </p>
+            </div>
+        </div>
 
-        <Button
-            v-if="canSave"
-            type="submit"
-            class="mt-4"
-            size="lg"
-            :disabled="blocked"
-            :loading="form.processing"
-        >
-            {{
-                form.enabled
-                    ? credential.enabled
-                        ? 'Save'
-                        : 'Enable'
-                    : 'Disable'
-            }}
-        </Button>
-    </form>
+        <slot />
+    </div>
 </template>

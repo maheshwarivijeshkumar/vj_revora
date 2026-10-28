@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { useClock } from '@/composables/useClock';
 import { Head, Link } from '@inertiajs/vue3';
-import EmptyState from '@/components/ui/EmptyState.vue';
+import type { Column } from '@/components/data/DataTable.vue';
+import RecordList from '@/components/data/RecordList.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 
 const { timeZone } = useClock();
+
 type MessageRow = {
     id: number;
     channel: string;
@@ -18,12 +20,26 @@ type MessageRow = {
 
 defineProps<{ messages: MessageRow[] }>();
 
+const columns: Column<MessageRow>[] = [
+    { key: 'subject', label: 'Message' },
+    { key: 'channel', label: 'Channel' },
+    { key: 'direction', label: 'Direction' },
+    { key: 'lead', label: 'Lead' },
+    { key: 'at', label: 'When' },
+];
+
 function when(value: string | null): string {
     if (!value) {
-        return '';
+        return '—';
     }
 
-    return new Date(value).toLocaleString(undefined, { timeZone: timeZone.value, day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' });
+    return new Date(value).toLocaleString(undefined, {
+        timeZone: timeZone.value,
+        day: 'numeric',
+        month: 'short',
+        hour: 'numeric',
+        minute: '2-digit',
+    });
 }
 </script>
 
@@ -33,27 +49,37 @@ function when(value: string | null): string {
     <AppLayout title="Messages" :breadcrumbs="[{ label: 'Messages' }]">
         <div class="space-y-4">
             <p class="max-w-3xl text-[0.88rem] text-muted">
-                Email and WhatsApp already sent or received on leads. Open the lead to reply.
+                Email and WhatsApp already sent or received on leads. Open the lead to reply. Messages stay on the record, so this list has no delete.
             </p>
 
-            <EmptyState v-if="messages.length === 0" title="No messages yet" description="A message appears here after you write to a lead, or they write back." />
-
-            <ul v-else class="divide-y divide-border overflow-hidden rounded-xl border border-border">
-                <li v-for="message in messages" :key="message.id" class="bg-surface px-4 py-3">
-                    <div class="flex flex-wrap items-baseline justify-between gap-2">
-                        <p class="font-medium text-strong">{{ message.subject || message.channel }}</p>
-                        <p class="text-[0.8rem] text-muted">{{ when(message.at) }}</p>
-                    </div>
-                    <p class="text-[0.85rem] text-muted">
-                        {{ message.direction }} · {{ message.channel }}
-                        <template v-if="message.lead_id">
-                            ·
-                            <Link :href="`/leads/${message.lead_id}`" class="text-primary-600 hover:underline">{{ message.lead }}</Link>
-                        </template>
-                    </p>
-                    <p v-if="message.body" class="mt-1 text-[0.88rem] text-body">{{ message.body }}</p>
-                </li>
-            </ul>
+            <RecordList
+                :rows="messages"
+                :columns="columns"
+                noun="message"
+                plural="messages"
+                placeholder="Search messages"
+                empty-title="No messages yet"
+                empty-description="A message appears here after you write to a lead, or they write back."
+                :row-key-label="(row) => row.subject || row.channel"
+            >
+                <template #cell:subject="{ row }">
+                    <p class="font-medium text-strong">{{ row.subject || row.channel }}</p>
+                    <p v-if="row.body" class="text-muted">{{ row.body }}</p>
+                </template>
+                <template #cell:lead="{ row }">
+                    <Link
+                        v-if="row.lead_id"
+                        :href="`/leads/${row.lead_id}`"
+                        class="text-primary-600 hover:underline"
+                    >
+                        {{ row.lead }}
+                    </Link>
+                    <span v-else>—</span>
+                </template>
+                <template #cell:at="{ row }">
+                    {{ when(row.at) }}
+                </template>
+            </RecordList>
         </div>
     </AppLayout>
 </template>
