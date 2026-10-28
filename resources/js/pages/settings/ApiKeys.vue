@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useClock } from '@/composables/useClock';
 import { Head, router, useForm, usePage } from '@inertiajs/vue3';
 import { Check, Copy, KeyRound, Plus, TriangleAlert } from 'lucide-vue-next';
 import { computed, ref, watch } from 'vue';
@@ -11,6 +12,7 @@ import AppLayout from '@/layouts/AppLayout.vue';
 import { copyText } from '@/lib/clipboard';
 import { useToastStore } from '@/stores/toast';
 
+const { timeZone } = useClock();
 type ApiKeyRow = {
     id: number;
     name: string;
@@ -110,7 +112,7 @@ function formatDate(value: string | null): string {
         return 'Never';
     }
 
-    return new Date(value).toLocaleString(undefined, {
+    return new Date(value).toLocaleString(undefined, { timeZone: timeZone.value,
         day: 'numeric',
         month: 'short',
         year: 'numeric',
@@ -218,12 +220,8 @@ function formatDate(value: string | null): string {
                         Scopes
                         <span class="text-danger" aria-hidden="true">*</span>
                     </legend>
-                    <p class="mt-1 text-[0.82rem] text-muted">
-                        Grant only what the integration needs. A write scope
-                        includes its matching read scope.
-                    </p>
 
-                    <div class="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                    <div class="mt-1.5 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                         <label
                             v-for="scope in scopes"
                             :key="scope.value"
@@ -248,6 +246,11 @@ function formatDate(value: string | null): string {
                             </span>
                         </label>
                     </div>
+
+                    <p class="mt-1.5 text-[0.82rem] leading-snug text-muted">
+                        Grant only what the integration needs. A write scope
+                        includes its matching read scope.
+                    </p>
 
                     <p
                         v-if="form.errors.scopes"

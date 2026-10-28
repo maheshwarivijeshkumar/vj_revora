@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Check, ChevronDown, CircleAlert, Search, X } from 'lucide-vue-next';
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { useFieldDescription } from '@/composables/useFieldDescription';
 import { cn } from '@/lib/utils';
 
 export type SelectOption = {
@@ -109,13 +110,7 @@ const activeId = computed(() =>
     activeIndex.value >= 0 ? `${props.id}-option-${activeIndex.value}` : undefined,
 );
 
-const describedBy = computed(() => {
-    const ids = [
-        props.hint ? `${props.id}-hint` : null,
-        props.invalid ? `${props.id}-error` : null,
-    ];
-    return ids.filter(Boolean).join(' ') || undefined;
-});
+const describedBy = useFieldDescription(props);
 
 async function openMenu(): Promise<void> {
     if (props.disabled) {

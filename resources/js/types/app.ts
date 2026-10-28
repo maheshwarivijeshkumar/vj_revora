@@ -77,6 +77,14 @@ export type NavSection = {
     items: NavItem[];
 };
 
+/** A primary area: one icon in the rail, and its own collapsible menu. */
+export type NavArea = {
+    id: string;
+    label: string;
+    icon: string;
+    sections: NavSection[];
+};
+
 export type BreadcrumbItem = {
     label: string;
     href?: string;

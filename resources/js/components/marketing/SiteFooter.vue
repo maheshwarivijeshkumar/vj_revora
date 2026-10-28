@@ -147,7 +147,7 @@ const year = new Date().getFullYear();
             <div
                 class="mt-14 flex flex-col gap-2 border-t border-border pt-6 text-[0.82rem] text-soft sm:flex-row sm:items-center sm:justify-between"
             >
-                <p>&copy; {{ year }} {{ brand.name }}</p>
+                <p>&copy; {{ year }} Berg Media Digital. All rights reserved.</p>
                 <p>
                     All integrations run on official, authorized provider APIs.
                 </p>

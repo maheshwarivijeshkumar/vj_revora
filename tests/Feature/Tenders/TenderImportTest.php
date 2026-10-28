@@ -63,6 +63,21 @@ function ppraPage(string ...$rows): string
     return '<html><body><table><tbody>'.implode('', $rows).'</tbody></table></body></html>';
 }
 
+/**
+ * The other government feeds answer empty, so a PPRA test does not call them.
+ *
+ * @param  array<string, mixed>  $overrides
+ */
+function fakePortals(array $overrides = []): void
+{
+    Http::fake([
+        'www.find-tender.service.gov.uk/*' => Http::response(['releases' => []]),
+        'www.contractsfinder.service.gov.uk/*' => Http::response(['releases' => []]),
+        'api.publiccontractsscotland.gov.uk/*' => Http::response(['notices' => []]),
+        ...$overrides,
+    ]);
+}
+
 function fakePpra(array $pages): void
 {
     $sequence = Http::sequence();
@@ -73,7 +88,7 @@ function fakePpra(array $pages): void
 
     $sequence->push(ppraPage());
 
-    Http::fake(['epms.ppra.gov.pk/public/tenders/active-tenders*' => $sequence]);
+    fakePortals(['epms.ppra.gov.pk/*' => $sequence]);
 }
 
 it('stores every active tender with its issue date and submission deadline', function (): void {
@@ -135,13 +150,15 @@ it('reads every page and stops at the first empty one', function (): void {
     $this->artisan('tenders:fetch')->assertSuccessful();
 
     expect(Tender::query()->pluck('reference')->sort()->values()->all())->toBe(['TS1', 'TS2', 'TS3']);
-    Http::assertSentCount(3);
+
+    $ppraRequests = Http::recorded(fn ($request): bool => str_contains($request->url(), 'epms.ppra.gov.pk'));
+    expect($ppraRequests)->toHaveCount(3);
     Sleep::assertSleptTimes(2);
 });
 
 it('updates a tender that is fetched again instead of duplicating it', function (): void {
     // Two runs: the second sees a corrigendum that moved the deadline.
-    Http::fake(['epms.ppra.gov.pk/public/tenders/active-tenders*' => Http::sequence()
+    fakePortals(['epms.ppra.gov.pk/*' => Http::sequence()
         ->push(ppraPage(ppraRow('TS1', 'Supply of laptops')))
         ->push(ppraPage())
         ->push(ppraPage(ppraRow('TS1', 'Supply of laptops', closing: 'Nov 20, 2026')))
@@ -156,10 +173,26 @@ it('updates a tender that is fetched again instead of duplicating it', function 
     expect($tender->closing_at->setTimezone('Asia/Karachi')->toDateString())->toBe('2026-11-20');
 });
 
-it('fails loudly when PPRA cannot be reached', function (): void {
-    Http::fake(['epms.ppra.gov.pk/*' => Http::response('Service unavailable', 503)]);
+it('keeps the other portals when PPRA is down', function (): void {
+    fakePortals(['epms.ppra.gov.pk/*' => Http::response('Service unavailable', 503)]);
 
-    $this->artisan('tenders:fetch')->assertFailed();
+    $this->artisan('tenders:fetch')
+        ->expectsOutputToContain('Pakistan PPRA')
+        ->assertSuccessful();
 
     expect(Tender::query()->count())->toBe(0);
+});
+
+it('fails when every government portal is down', function (): void {
+    Http::fake([
+        'epms.ppra.gov.pk/*' => Http::response('Service unavailable', 503),
+        'www.find-tender.service.gov.uk/*' => Http::response('Service unavailable', 503),
+        'www.contractsfinder.service.gov.uk/*' => Http::response('Service unavailable', 503),
+        'api.publiccontractsscotland.gov.uk/*' => Http::response('Service unavailable', 503),
+    ]);
+    Http::preventStrayRequests();
+
+    $this->artisan('tenders:fetch')
+        ->expectsOutputToContain('No government tender portal could be read.')
+        ->assertFailed();
 });

@@ -163,46 +163,59 @@ function removeTemplate(t: Template): void {
                     <li
                         v-for="(step, index) in schedule.steps"
                         :key="index"
-                        class="grid items-end gap-3 rounded-lg border border-border p-3 sm:grid-cols-[2rem_9rem_1fr_auto]"
+                        class="rounded-lg border border-border p-3"
                     >
-                        <span
-                            class="text-[0.9rem] font-semibold text-muted sm:pb-2"
-                            >{{ index + 1 }}.</span
+                        <div
+                            class="grid gap-3 sm:grid-cols-[1.5rem_11rem_minmax(0,1fr)_2.75rem] sm:items-start"
                         >
-                        <FormField
-                            :id="`step-${index}-delay`"
-                            label="Hours after first"
-                            :hint="describeDelay(step.delay_hours)"
-                        >
-                            <TextInput
+                            <span
+                                class="text-[0.9rem] font-semibold text-muted sm:pt-8"
+                                >{{ index + 1 }}.</span
+                            >
+                            <FormField
                                 :id="`step-${index}-delay`"
-                                v-model="step.delay_hours"
-                                type="number"
-                            />
-                        </FormField>
-                        <FormField
-                            :id="`step-${index}-template`"
-                            label="Email"
-                            :error="
-                                schedule.errors[`steps.${index}.template_id`]
-                            "
-                        >
-                            <SelectMenu
+                                label="Hours after first"
+                                :hint="describeDelay(step.delay_hours)"
+                            >
+                                <TextInput
+                                    :id="`step-${index}-delay`"
+                                    v-model="step.delay_hours"
+                                    type="number"
+                                    min="0"
+                                />
+                            </FormField>
+                            <FormField
                                 :id="`step-${index}-template`"
-                                v-model="step.template_id"
-                                :options="templateOptions"
-                                placeholder="Choose a template"
-                            />
-                        </FormField>
-                        <Button
-                            v-if="schedule.steps.length > 1"
-                            variant="ghost"
-                            size="sm"
-                            :aria-label="`Remove email ${index + 1}`"
-                            @click="removeStep(index)"
-                        >
-                            <Trash2 class="size-4" />
-                        </Button>
+                                label="Email"
+                                :error="
+                                    schedule.errors[
+                                        `steps.${index}.template_id`
+                                    ]
+                                "
+                            >
+                                <SelectMenu
+                                    :id="`step-${index}-template`"
+                                    v-model="step.template_id"
+                                    :options="templateOptions"
+                                    placeholder="Choose a template"
+                                />
+                            </FormField>
+                            <div>
+                                <span class="invisible block text-[0.8125rem] font-medium" aria-hidden="true">Remove</span>
+                                <div class="mt-1.5">
+                                <Button
+                                    v-if="schedule.steps.length > 1"
+                                    variant="danger"
+                                    size="icon"
+                                    class="size-11"
+                                    :aria-label="`Remove email ${index + 1}`"
+                                    @click="removeStep(index)"
+                                >
+                                    <Trash2 class="size-4" />
+                                </Button>
+                                </div>
+                            </div>
+                        </div>
                     </li>
                 </ol>
 
@@ -214,7 +227,7 @@ function removeTemplate(t: Template): void {
                     {{ schedule.errors.steps }}
                 </p>
 
-                <div class="mt-3 flex flex-wrap items-end gap-4">
+                <div class="mt-3">
                     <Button
                         v-if="schedule.steps.length < 10"
                         variant="secondary"
@@ -224,6 +237,9 @@ function removeTemplate(t: Template): void {
                         <Plus class="size-4" />
                         Add an email
                     </Button>
+                </div>
+
+                <div class="mt-4 max-w-xs">
                     <FormField
                         id="no-reply"
                         label="No reply after (hours)"
@@ -234,7 +250,7 @@ function removeTemplate(t: Template): void {
                             id="no-reply"
                             v-model="schedule.no_reply_after_hours"
                             type="number"
-                            class="w-32"
+                            min="1"
                         />
                     </FormField>
                 </div>

@@ -88,8 +88,8 @@ export const brands = [
         key: 'revora',
         name: 'Revora',
         tagline: 'Grow Faster. Generate More Revenue.',
-        primary: '#059669',
-        secondary: '#10B981',
+        primary: '#0F9F94',
+        secondary: '#14B8A6',
         accent: '#2563EB',
         // Rising revenue bars with a trend arrow clearing the bar tops, so the
         // two elements never overlap and muddy the shape at small sizes.

@@ -34,6 +34,7 @@ use Spatie\Permission\Traits\HasRoles;
  * @property string $timezone
  * @property string $locale
  * @property string $status
+ * @property string $presence
  * @property Carbon|null $last_login_at
  */
 #[Fillable(['name', 'email', 'password', 'timezone', 'locale', 'avatar_path'])]

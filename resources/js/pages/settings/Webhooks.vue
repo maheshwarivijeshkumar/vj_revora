@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useClock } from '@/composables/useClock';
 import { Head, router, useForm } from '@inertiajs/vue3';
 import {
     Check,
@@ -21,6 +22,7 @@ import AppLayout from '@/layouts/AppLayout.vue';
 import { copyText } from '@/lib/clipboard';
 import { useToastStore } from '@/stores/toast';
 
+const { timeZone } = useClock();
 type Endpoint = {
     id: string;
     description: string;
@@ -169,7 +171,7 @@ function formatDate(value: string | null): string {
         return 'Never';
     }
 
-    return new Date(value).toLocaleString(undefined, {
+    return new Date(value).toLocaleString(undefined, { timeZone: timeZone.value,
         day: 'numeric',
         month: 'short',
         hour: '2-digit',

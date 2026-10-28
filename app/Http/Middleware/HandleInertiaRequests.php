@@ -6,6 +6,8 @@ namespace App\Http\Middleware;
 
 use App\Domain\Billing\Entitlements;
 use App\Domain\Tenancy\TenantContext;
+use App\Domain\Time\TimezoneCatalog;
+use App\Models\UserNotification;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -38,6 +40,8 @@ final class HandleInertiaRequests extends Middleware
 
             'name' => config('app.name'),
 
+            'timezones' => fn (): array => $user === null ? [] : TimezoneCatalog::options(),
+
             'auth' => [
                 'user' => $user === null ? null : [
                     'id' => $user->id,
@@ -46,8 +50,33 @@ final class HandleInertiaRequests extends Middleware
                     'email' => $user->email,
                     'avatar' => $user->avatar_path,
                     'timezone' => $user->timezone,
+                    'timezone_label' => TimezoneCatalog::label($user->timezone),
                     'locale' => $user->locale,
+                    'presence' => $user->presence ?? 'active',
                 ],
+            ],
+
+            // Only this person's notices. Opening the list does not mark them
+            // read; that happens when they open one.
+            'notifications' => fn (): array => $user === null ? ['unread' => 0, 'items' => []] : [
+                'unread' => UserNotification::query()
+                    ->where('user_id', $user->id)
+                    ->whereNull('read_at')
+                    ->count(),
+                'items' => UserNotification::query()
+                    ->where('user_id', $user->id)
+                    ->latest('id')
+                    ->limit(15)
+                    ->get()
+                    ->map(fn (UserNotification $notice): array => [
+                        'id' => $notice->id,
+                        'title' => $notice->title,
+                        'body' => $notice->body,
+                        'href' => $notice->href,
+                        'read_at' => $notice->read_at?->toIso8601String(),
+                        'created_at' => $notice->created_at?->toIso8601String(),
+                    ])
+                    ->all(),
             ],
 
             'tenant' => $tenant === null ? null : [

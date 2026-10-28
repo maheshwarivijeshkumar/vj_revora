@@ -15,13 +15,17 @@ use App\Models\Tender;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Process;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 use RuntimeException;
 
 /**
- * Tenders and job posts that fit what the workspace sells (§19).
+ * Job posts that fit what the workspace sells.
+ *
+ * Government tenders stay on their own page. A proposal is drafted here
+ * and the person applies on the site that published the job.
  */
 final class OpportunityController extends Controller
 {
@@ -36,26 +40,22 @@ final class OpportunityController extends Controller
         $profile = $request->string('profile')->toString();
         $term = $request->string('search')->trim()->toString();
 
+        $source = array_key_exists($source, JobPost::SOURCES) ? $source : '';
+
         $query = OpportunityMatch::query()
             ->with('profile:id,name,kind')
+            ->where('opportunity_type', OpportunityMatch::TYPE_JOB_POST)
             ->where('fit_score', '>=', $minFit)
             ->when($status === 'open', fn (Builder $q) => $q->whereIn('status', ['new', 'shortlisted', 'drafted']))
             ->when($status !== 'open' && $status !== 'all', fn (Builder $q) => $q->where('status', $status))
             ->when($profile !== '', fn (Builder $q) => $q->whereHas('profile', fn (Builder $p) => $p->where('uuid', $profile)))
-            ->when($source === 'tender', fn (Builder $q) => $q->where('opportunity_type', OpportunityMatch::TYPE_TENDER))
-            ->when(
-                $source !== '' && $source !== 'tender',
-                fn (Builder $q) => $q->where('opportunity_type', OpportunityMatch::TYPE_JOB_POST)
-                    ->whereIn('opportunity_id', JobPost::query()->select('id')->where('source', $source)),
-            )
+            ->when($source !== '', fn (Builder $q) => $q->whereIn('opportunity_id', JobPost::query()->select('id')->where('source', $source)))
             ->when($term !== '', function (Builder $q) use ($term): void {
                 $like = '%'.str_replace(['%', '_'], ['\%', '\_'], $term).'%';
 
-                $q->where(fn (Builder $inner) => $inner
-                    ->where(fn (Builder $t) => $t->where('opportunity_type', OpportunityMatch::TYPE_TENDER)
-                        ->whereIn('opportunity_id', Tender::query()->select('id')->where('title', 'like', $like)->orWhere('organization', 'like', $like)))
-                    ->orWhere(fn (Builder $j) => $j->where('opportunity_type', OpportunityMatch::TYPE_JOB_POST)
-                        ->whereIn('opportunity_id', JobPost::query()->select('id')->where('title', 'like', $like)->orWhere('company', 'like', $like))));
+                $q->whereIn('opportunity_id', JobPost::query()->select('id')->where(fn (Builder $job) => $job
+                    ->where('title', 'like', $like)
+                    ->orWhere('company', 'like', $like)));
             });
 
         $matches = $query->orderByDesc('fit_score')->orderByDesc('id')->paginate($perPage)->withQueryString();
@@ -77,22 +77,73 @@ final class OpportunityController extends Controller
                 'profile' => $profile,
                 'per_page' => $perPage,
             ],
-            'sources' => [
-                ['value' => 'tender', 'label' => 'Pakistan tenders'],
-                ...array_map(fn (string $key, string $label): array => ['value' => $key, 'label' => $label], array_keys(JobPost::SOURCES), JobPost::SOURCES),
-            ],
+            'sources' => array_map(
+                fn (string $key, string $label): array => ['value' => $key, 'label' => $label],
+                array_keys(JobPost::SOURCES),
+                JobPost::SOURCES,
+            ),
+            'resumes' => ServiceProfile::query()->orderByDesc('is_default')->orderBy('id')->get()
+                ->map(fn (ServiceProfile $profile): array => [
+                    'id' => $profile->uuid,
+                    'name' => $profile->name,
+                    'kind' => $profile->kind,
+                    'about' => $profile->about ?? '',
+                ])->all(),
+            'canEditResume' => (bool) $request->user()?->can('settings.manage'),
             'statuses' => OpportunityStatus::options(),
             'profiles' => ServiceProfile::query()->orderByDesc('is_default')->get(['uuid', 'name'])->map(fn (ServiceProfile $p): array => ['value' => $p->uuid, 'label' => $p->name])->all(),
-            'counts' => OpportunityMatch::query()
-                ->where('fit_score', '>=', OpportunityMatch::HIGH_FIT)
-                ->whereIn('status', ['new', 'shortlisted', 'drafted'])
-                ->selectRaw('opportunity_type, count(*) as total')
-                ->groupBy('opportunity_type')
-                ->pluck('total', 'opportunity_type'),
+            'counts' => [
+                'job_post' => OpportunityMatch::query()
+                    ->where('opportunity_type', OpportunityMatch::TYPE_JOB_POST)
+                    ->where('fit_score', '>=', OpportunityMatch::HIGH_FIT)
+                    ->whereIn('status', ['new', 'shortlisted', 'drafted'])
+                    ->count(),
+            ],
             'hasProfiles' => ServiceProfile::query()->exists(),
             'highFit' => OpportunityMatch::HIGH_FIT,
             'pageSizes' => self::PAGE_SIZES,
         ]);
+    }
+
+    public function sync(Request $request): RedirectResponse
+    {
+        abort_unless($request->user()?->can('lead.update'), 403);
+
+        $sources = array_values(array_filter(
+            (array) $request->input('sources', []),
+            fn (mixed $source): bool => is_string($source) && array_key_exists($source, JobPost::SOURCES),
+        ));
+
+        if ($sources === []) {
+            return back()->with('error', 'Choose at least one source to sync.');
+        }
+
+        $command = [PHP_BINARY, base_path('artisan'), 'opportunities:fetch'];
+
+        foreach ($sources as $source) {
+            $command[] = '--source='.$source;
+        }
+
+        Process::path(base_path())->command($command)->start();
+
+        $names = array_map(fn (string $source): string => JobPost::SOURCES[$source], $sources);
+
+        return back()->with('success', 'Sync started for '.implode(', ', $names).'. New jobs show up when the pull finishes. Apply on each site yourself.');
+    }
+
+    public function resume(Request $request): RedirectResponse
+    {
+        abort_unless($request->user()?->can('settings.manage'), 403);
+
+        $validated = $request->validate([
+            'profile' => ['required', 'uuid'],
+            'about' => ['required', 'string', 'max:30000'],
+        ]);
+
+        $profile = ServiceProfile::query()->where('uuid', $validated['profile'])->firstOrFail();
+        $profile->forceFill(['about' => $validated['about']])->save();
+
+        return back()->with('success', "Resume saved for {$profile->name}. New drafts use this text.");
     }
 
     public function update(Request $request, OpportunityMatch $match): RedirectResponse
@@ -156,7 +207,7 @@ final class OpportunityController extends Controller
         if ($opportunity instanceof Tender) {
             return [
                 ...$base,
-                'source' => 'PPRA tender',
+                'source' => $opportunity->sourceLabel(),
                 'title' => $opportunity->title,
                 'who' => $opportunity->department ?? $opportunity->organization,
                 'where' => $opportunity->city,

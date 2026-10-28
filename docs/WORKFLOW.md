@@ -21,11 +21,12 @@ to set each part up.
                                        ▼                         ▼
                                 Qualified / Contacted ──► call, proposal, won / lost
 
- Pakistan PPRA tenders ─┐
- Upwork jobs ───────────┼─► fetch → dedupe → fit score vs your services ─► Opportunities page
- Remotive / Remote OK /─┘                                                   │
- Arbeitnow job boards                                    AI drafts proposal ─┤
-                                                         you review & submit ┘ (Upwork / EPADS / email)
+ Pakistan PPRA ────────────┐
+ UK Find a Tender ──────────┤
+ UK Contracts Finder ───────┼─► fetch → dedupe → fit score vs your services ─► Opportunities page
+ Public Contracts Scotland ─┤                                                   │
+ Upwork / job boards ───────┘                                AI drafts proposal ─┤
+                                                         you review & submit ┘ (Upwork / the tender portal / email)
 ```
 
 ---
@@ -137,7 +138,7 @@ Each template exists twice: `Berg Media · …` (we) and `Vijesh · …` (I). Pl
 
 | Source | How often | Notes |
 | --- | --- | --- |
-| **Pakistan PPRA tenders** (EPMS) | 8 AM and 4 PM PKT | All ~2,000 active federal tenders. Also listed in full on the **Tenders** page with issue date and submission deadline |
+| **Government tenders** | 8 AM and 4 PM PKT | Pakistan PPRA (federal), UK Find a Tender, UK Contracts Finder and Public Contracts Scotland. Listed on the **Tenders** page with the issuing country, issue date and submission deadline |
 | **Upwork** | Every 2 hours | Official API, read-only, after Upwork approves your API key. One search per profile from its service keywords |
 | **Remotive, Remote OK, Arbeitnow** | 9 AM and 5 PM PKT | Public APIs. Companies hiring for work you can deliver as a contractor. Each post links back to its board, as their terms require |
 
@@ -159,11 +160,11 @@ The same job on two boards is kept once.
    facts only (template draft when no AI key is set).
    - Upwork: a 150–220 word cover letter
    - Job board: a short pitch offering to deliver the role's work as a contractor
-   - Tender: a formal expression of interest plus a "Before bidding" checklist (FBR active-taxpayer,
-     NTN/STN, EPADS registration, experience evidence, bid security)
-3. **Edit, copy, and submit it yourself** on Upwork, on EPADS, or by email. Nothing is submitted
+   - Tender: a formal expression of interest plus a "Before bidding" checklist for that portal
+     (Pakistan: FBR, NTN/STN, EPADS; UK: insurance, exclusion grounds and the selection questionnaire)
+3. **Edit, copy, and submit it yourself** on Upwork, on the procurement portal, or by email. Nothing is submitted
    automatically: Upwork bans automated proposals and can suspend accounts that use them, and
-   tenders are bid on EPADS.
+   a tender is bid on the portal that published it.
 4. **Mark applied** → later **Won** or **Lost**. **Add to leads** puts it in the pipeline.
    **Not a fit** dismisses it.
 
@@ -233,7 +234,8 @@ Workspace, or SMTP + IMAP with a Gmail app password, to avoid that.
 | Follow-up emails due | every minute |
 | Read inboxes for replies | every 5 minutes |
 | Facebook / Instagram / LinkedIn lead sync | hourly |
+| Ad campaigns (connected accounts, plus campaigns named on leads) | hourly |
 | Upwork job search | every 2 hours |
-| PPRA tenders | 8 AM and 4 PM PKT |
+| Government tenders | 8 AM and 4 PM PKT |
 | Job boards | 9 AM and 5 PM PKT |
 | Remove deleted documents | 3:30 AM daily |

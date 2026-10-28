@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useClock } from '@/composables/useClock';
 import { router, useForm } from '@inertiajs/vue3';
 import {
     Check,
@@ -56,6 +57,7 @@ export type TimelineTask = {
     assignee: string | null;
 };
 
+const { timeZone } = useClock();
 const props = defineProps<{
     /** `lead`, `contact`, `company` or `deal` — the controller's allowlist. */
     subjectType: string;
@@ -203,7 +205,7 @@ function formatDate(value: string | null, withTime = false): string {
         return '—';
     }
 
-    return new Date(value).toLocaleString(undefined, {
+    return new Date(value).toLocaleString(undefined, { timeZone: timeZone.value,
         day: 'numeric',
         month: 'short',
         year: 'numeric',

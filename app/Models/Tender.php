@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Domain\Tenders\Enums\TenderBuyerKind;
 use App\Domain\Tenders\Enums\TenderTopic;
+use App\Domain\Tenders\TenderPortal;
 use Database\Factories\TenderFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -12,13 +14,15 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 
 /**
- * A public procurement notice (PPRA EPMS).
+ * A procurement notice from a public, semi-government, private, or private-industry buyer.
  *
  * Deliberately not tenant-owned: every workspace sees the same public notices,
  * so there is nothing to scope.
  *
  * @property int $id
  * @property string $source
+ * @property string|null $country
+ * @property TenderBuyerKind $buyer_kind
  * @property string $reference
  * @property string $title
  * @property string|null $description
@@ -62,6 +66,11 @@ final class Tender extends Model
         return $this->closing_at !== null && $this->closing_at->isFuture();
     }
 
+    public function sourceLabel(): string
+    {
+        return TenderPortal::label($this->source);
+    }
+
     /**
      * @return array<string, string>
      */
@@ -70,6 +79,7 @@ final class Tender extends Model
         return [
             'advertised_on' => 'date',
             'closing_at' => 'datetime',
+            'buyer_kind' => TenderBuyerKind::class,
             'topic' => TenderTopic::class,
             'is_it_related' => 'boolean',
             'first_seen_at' => 'datetime',

@@ -16,6 +16,7 @@ use App\Domain\Opportunities\Sources\RemotiveSource;
 use App\Domain\Opportunities\Sources\UpworkClient;
 use App\Domain\Opportunities\UpworkSearches;
 use App\Domain\Tenancy\TenantContext;
+use App\Models\JobPost;
 use App\Models\ServiceProfile;
 use App\Models\Tenant;
 use App\Models\UpworkAccount;
@@ -36,7 +37,9 @@ final class FetchOpportunities extends Command
     /** @var list<class-string<JobSource>> */
     private const BOARDS = [RemotiveSource::class, RemoteOkSource::class, ArbeitnowSource::class];
 
-    protected $signature = 'opportunities:fetch {--upwork : Only search connected Upwork accounts}';
+    protected $signature = 'opportunities:fetch
+        {--upwork : Only search connected Upwork accounts}
+        {--source=* : Pull only these sources: upwork, remotive, remoteok, arbeitnow}';
 
     protected $description = 'Fetch job posts from remote job boards and Upwork, then score them against each workspace';
 
@@ -47,26 +50,53 @@ final class FetchOpportunities extends Command
         UpworkClient $upwork,
         UpworkSearches $searches,
     ): int {
-        if (! $this->option('upwork')) {
-            foreach (self::BOARDS as $class) {
-                /** @var JobSource $source */
-                $source = app($class);
+        $sources = $this->sources();
 
-                try {
-                    $counts = $import->handle($source->fetch());
-                    $this->line("{$source->key()}: {$counts['created']} new, {$counts['updated']} updated, {$counts['duplicates']} duplicates skipped.");
-                } catch (RuntimeException $e) {
-                    // One board being down must not stop the others.
-                    $this->warn("{$source->key()}: {$e->getMessage()}");
-                }
+        foreach (self::BOARDS as $class) {
+            /** @var JobSource $source */
+            $source = app($class);
+
+            if (! in_array($source->key(), $sources, true)) {
+                continue;
+            }
+
+            try {
+                $counts = $import->handle($source->fetch());
+                $this->line("{$source->key()}: {$counts['created']} new, {$counts['updated']} updated, {$counts['duplicates']} duplicates skipped.");
+            } catch (RuntimeException $e) {
+                // One board being down must not stop the others.
+                $this->warn("{$source->key()}: {$e->getMessage()}");
             }
         }
 
-        $this->searchUpwork($import, $context, $upwork, $searches);
+        if (in_array('upwork', $sources, true)) {
+            $this->searchUpwork($import, $context, $upwork, $searches);
+        }
 
         $this->info('New matches: '.$match->handle());
 
         return self::SUCCESS;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function sources(): array
+    {
+        $requested = array_values(array_filter(
+            (array) $this->option('source'),
+            fn (mixed $source): bool => is_string($source) && array_key_exists($source, JobPost::SOURCES),
+        ));
+
+        if ($requested !== []) {
+            return $requested;
+        }
+
+        if ($this->option('upwork')) {
+            return ['upwork'];
+        }
+
+        return array_keys(JobPost::SOURCES);
     }
 
     private function searchUpwork(ImportJobPosts $import, TenantContext $context, UpworkClient $upwork, UpworkSearches $searches): void

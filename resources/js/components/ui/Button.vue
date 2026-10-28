@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { cva, type VariantProps } from 'class-variance-authority';
 import { Loader2 } from 'lucide-vue-next';
-import { computed } from 'vue';
+import { computed, useAttrs } from 'vue';
 import { cn } from '@/lib/utils';
+
+defineOptions({ inheritAttrs: false });
 
 const button = cva(
     [
@@ -26,11 +28,11 @@ const button = cva(
             size: {
                 sm: 'h-8 px-3 text-small',
                 md: 'h-9 px-4 text-body',
-                lg: 'h-11 px-6 text-body-lg',
+                lg: 'h-11 px-5 text-[0.875rem]',
                 icon: 'size-9',
             },
         },
-        defaultVariants: { variant: 'primary', size: 'md' },
+        defaultVariants: { variant: 'primary', size: 'lg' },
     },
 );
 
@@ -50,14 +52,23 @@ const props = withDefaults(
 // Blocking clicks while loading is what actually prevents the duplicate
 // submits required by §116 — a spinner alone does not.
 const isDisabled = computed(() => props.disabled || props.loading);
+
+const attrs = useAttrs();
+
+const passthrough = computed(() => {
+    const { class: _class, ...rest } = attrs;
+
+    return rest;
+});
 </script>
 
 <template>
     <button
+        v-bind="passthrough"
         :type="type"
         :disabled="isDisabled"
         :aria-busy="loading || undefined"
-        :class="cn(button({ variant, size }))"
+        :class="cn(button({ variant, size }), attrs.class as string)"
     >
         <Loader2 v-if="loading" class="size-4 animate-spin" aria-hidden="true" />
         <slot />

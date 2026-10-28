@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useClock } from '@/composables/useClock';
 import { Head, router } from '@inertiajs/vue3';
 import {
     ChevronDown,
@@ -8,12 +9,15 @@ import {
     User,
 } from 'lucide-vue-next';
 import { computed, ref } from 'vue';
+import DataTablePagination from '@/components/data/DataTablePagination.vue';
 import Button from '@/components/ui/Button.vue';
+import FormField from '@/components/ui/FormField.vue';
 import SelectMenu from '@/components/ui/SelectMenu.vue';
 import StatusBadge from '@/components/ui/StatusBadge.vue';
 import TextInput from '@/components/ui/TextInput.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 
+const { timeZone } = useClock();
 type Entry = {
     id: number;
     action: string;
@@ -35,6 +39,8 @@ const props = defineProps<{
             current_page: number;
             last_page: number;
             per_page: number;
+            from: number | null;
+            to: number | null;
             total: number;
         };
     };
@@ -131,7 +137,7 @@ function formatDate(value: string | null): string {
         return '';
     }
 
-    return new Date(value).toLocaleString(undefined, {
+    return new Date(value).toLocaleString(undefined, { timeZone: timeZone.value,
         day: 'numeric',
         month: 'short',
         year: 'numeric',
@@ -150,78 +156,63 @@ function formatDate(value: string | null): string {
         :breadcrumbs="[{ label: 'Settings' }, { label: 'Audit log' }]"
     >
         <div class="space-y-4">
-            <!-- Filters -->
-            <div class="rounded-xl border border-border bg-surface p-4">
-                <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                    <label class="block">
-                        <span
-                            class="mb-1.5 block text-[0.82rem] font-medium text-strong"
-                        >
-                            Action
-                        </span>
+            <form
+                class="rounded-xl border border-border bg-surface p-4"
+                @submit.prevent="apply"
+            >
+                <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                    <FormField id="audit-action" label="Action">
                         <SelectMenu
                             id="audit-action"
                             v-model="action"
                             :options="actionOptions"
+                            placeholder="All actions"
                             @update:model-value="apply"
                         />
-                    </label>
-                    <label class="block">
-                        <span
-                            class="mb-1.5 block text-[0.82rem] font-medium text-strong"
-                        >
-                            Who
-                        </span>
+                    </FormField>
+                    <FormField id="audit-actor" label="Who">
                         <SelectMenu
                             id="audit-actor"
                             v-model="actor"
                             :options="actorOptions"
+                            placeholder="Anyone"
                             @update:model-value="apply"
                         />
-                    </label>
-                    <div>
-                        <label
-                            for="audit-from"
-                            class="mb-1.5 block text-[0.82rem] font-medium text-strong"
-                        >
-                            From
-                        </label>
+                    </FormField>
+                    <FormField id="audit-from" label="From">
                         <TextInput
                             id="audit-from"
                             v-model="from"
                             type="date"
                             @change="apply"
                         />
-                    </div>
-                    <div>
-                        <label
-                            for="audit-to"
-                            class="mb-1.5 block text-[0.82rem] font-medium text-strong"
-                        >
-                            To
-                        </label>
+                    </FormField>
+                    <FormField id="audit-to" label="To">
                         <TextInput
                             id="audit-to"
                             v-model="to"
                             type="date"
                             @change="apply"
                         />
-                    </div>
+                    </FormField>
                 </div>
 
-                <div
-                    v-if="hasFilters"
-                    class="mt-3 flex items-center justify-between"
-                >
+                <div class="mt-4 flex flex-wrap items-center justify-between gap-3">
                     <p class="text-[0.85rem] text-muted">
-                        {{ logs.meta.total }}
-                        {{ logs.meta.total === 1 ? 'entry' : 'entries' }} match
+                        {{ logs.meta.total.toLocaleString() }}
+                        {{ logs.meta.total === 1 ? 'entry' : 'entries' }}
                     </p>
-                    <Button variant="ghost" size="sm" @click="clear">
+                    <Button
+                        v-if="hasFilters"
+                        variant="secondary"
+                        size="lg"
+                        type="button"
+                        @click="clear"
+                    >
                         Clear filters
                     </Button>
                 </div>
-            </div>
+            </form>
 
             <!-- Trail -->
             <div
@@ -244,11 +235,21 @@ function formatDate(value: string | null): string {
                 v-else
                 class="overflow-hidden rounded-xl border border-border bg-surface"
             >
-                <ul class="divide-y divide-border-soft">
+                <div
+                    class="hidden grid-cols-[1.25rem_minmax(9rem,1.15fr)_minmax(7rem,0.8fr)_minmax(8rem,1fr)_minmax(11rem,1.15fr)_6.5rem] items-center gap-3 border-b border-border bg-surface-alt px-4 py-2.5 text-[0.75rem] font-semibold tracking-wide text-muted uppercase sm:grid"
+                >
+                    <span aria-hidden="true"></span>
+                    <span>Action</span>
+                    <span>Record</span>
+                    <span>Who</span>
+                    <span>When</span>
+                    <span>IP</span>
+                </div>
+                <ul class="divide-y divide-border">
                     <li v-for="entry in logs.data" :key="entry.id">
                         <button
                             type="button"
-                            class="flex w-full items-start gap-3 px-4 py-3 text-left transition-colors hover:bg-surface-alt"
+                            class="grid w-full items-center gap-2 px-4 py-3 text-left transition-colors hover:bg-surface-alt sm:grid-cols-[1.25rem_minmax(9rem,1.15fr)_minmax(7rem,0.8fr)_minmax(8rem,1fr)_minmax(11rem,1.15fr)_6.5rem] sm:gap-3"
                             :aria-expanded="expanded === entry.id"
                             @click="
                                 expanded =
@@ -261,52 +262,49 @@ function formatDate(value: string | null): string {
                                         ? ChevronDown
                                         : ChevronRight
                                 "
-                                class="mt-1 size-4 shrink-0 text-soft"
+                                class="size-4 shrink-0 text-soft"
                                 aria-hidden="true"
                             />
 
-                            <span class="min-w-0 flex-1">
-                                <span class="flex flex-wrap items-center gap-2">
-                                    <StatusBadge
-                                        :tone="
-                                            entry.is_destructive
-                                                ? 'danger'
-                                                : 'neutral'
-                                        "
-                                        :label="entry.action_label"
-                                    />
-                                    <span
-                                        v-if="entry.entity"
-                                        class="font-mono text-[0.78rem] text-muted"
-                                    >
-                                        {{ entry.entity.type }}#{{
-                                            entry.entity.id
-                                        }}
-                                    </span>
-                                </span>
-
-                                <span
-                                    class="mt-1 flex flex-wrap items-center gap-2 text-[0.85rem] text-muted"
-                                >
-                                    <component
-                                        :is="actorIcon(entry.actor.type)"
-                                        class="size-3.5"
-                                        aria-hidden="true"
-                                    />
-                                    {{ entry.actor.name }}
-                                    <span class="text-soft">·</span>
-                                    <span class="tabular-nums">{{
-                                        formatDate(entry.created_at)
-                                    }}</span>
-                                    <template v-if="entry.ip">
-                                        <span class="text-soft">·</span>
-                                        <span
-                                            class="font-mono text-[0.78rem]"
-                                            >{{ entry.ip }}</span
-                                        >
-                                    </template>
-                                </span>
+                            <span class="min-w-0">
+                                <StatusBadge
+                                    :tone="
+                                        entry.is_destructive
+                                            ? 'danger'
+                                            : 'neutral'
+                                    "
+                                    :label="entry.action_label"
+                                />
                             </span>
+                            <span
+                                class="min-w-0 truncate font-mono text-[0.78rem] text-muted"
+                            >
+                                {{
+                                    entry.entity
+                                        ? `${entry.entity.type} #${entry.entity.id}`
+                                        : '—'
+                                }}
+                            </span>
+                            <span
+                                class="flex min-w-0 items-center gap-1.5 text-[0.85rem] text-strong"
+                            >
+                                <component
+                                    :is="actorIcon(entry.actor.type)"
+                                    class="size-3.5 shrink-0 text-muted"
+                                    aria-hidden="true"
+                                />
+                                <span class="truncate">{{
+                                    entry.actor.name
+                                }}</span>
+                            </span>
+                            <span
+                                class="text-[0.85rem] text-muted tabular-nums"
+                                >{{ formatDate(entry.created_at) }}</span
+                            >
+                            <span
+                                class="truncate font-mono text-[0.78rem] text-muted"
+                                >{{ entry.ip ?? '—' }}</span
+                            >
                         </button>
 
                         <!-- The diff -->
@@ -369,37 +367,16 @@ function formatDate(value: string | null): string {
                     </li>
                 </ul>
 
-                <!-- Pagination -->
-                <div
-                    v-if="logs.meta.last_page > 1"
-                    class="flex items-center justify-between border-t border-border px-4 py-2.5"
-                >
-                    <p class="text-[0.85rem] text-muted">
-                        Page {{ logs.meta.current_page }} of
-                        {{ logs.meta.last_page }} ·
-                        {{ logs.meta.total }} entries
-                    </p>
-                    <div class="flex gap-2">
-                        <Button
-                            variant="secondary"
-                            size="sm"
-                            :disabled="logs.meta.current_page === 1"
-                            @click="page(logs.meta.current_page - 1)"
-                        >
-                            Previous
-                        </Button>
-                        <Button
-                            variant="secondary"
-                            size="sm"
-                            :disabled="
-                                logs.meta.current_page === logs.meta.last_page
-                            "
-                            @click="page(logs.meta.current_page + 1)"
-                        >
-                            Next
-                        </Button>
-                    </div>
-                </div>
+                <DataTablePagination
+                    :from="logs.meta.from"
+                    :to="logs.meta.to"
+                    :total="logs.meta.total"
+                    :current-page="logs.meta.current_page"
+                    :last-page="logs.meta.last_page"
+                    :per-page="logs.meta.per_page"
+                    :page-sizes="[25]"
+                    @page="page"
+                />
             </div>
 
             <p class="text-[0.85rem] text-muted">

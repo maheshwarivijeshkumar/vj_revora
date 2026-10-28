@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { router } from '@inertiajs/vue3';
+import { useClock } from '@/composables/useClock';
+import { Link, router } from '@inertiajs/vue3';
 import { Mail, MessageCircle, Send, Square } from 'lucide-vue-next';
 import { computed, onMounted, ref } from 'vue';
 import Button from '@/components/ui/Button.vue';
@@ -11,6 +12,7 @@ import TextArea from '@/components/ui/TextArea.vue';
 import TextInput from '@/components/ui/TextInput.vue';
 import { useAuthorization } from '@/composables/useAuthorization';
 
+const { timeZone } = useClock();
 type Message = {
     id: string;
     channel: 'email' | 'whatsapp';
@@ -67,7 +69,18 @@ const { can } = useAuthorization();
 const data = ref<Conversation | null>(null);
 const failed = ref(false);
 const composer = ref<'email' | 'whatsapp' | null>(null);
+const channel = ref<'all' | 'email' | 'whatsapp'>('all');
 const sending = ref(false);
+
+const visibleMessages = computed(() => {
+    const messages = data.value?.messages ?? [];
+
+    if (channel.value === 'all') {
+        return messages;
+    }
+
+    return messages.filter((message) => message.channel === channel.value);
+});
 
 const email = ref({ template: '', subject: '', body: '' });
 const whatsappText = ref('');
@@ -170,7 +183,7 @@ function scoreTone(score: number): Tone {
 
 function formatDate(value: string | null): string {
     return value
-        ? new Date(value).toLocaleString(undefined, {
+        ? new Date(value).toLocaleString(undefined, { timeZone: timeZone.value,
               day: 'numeric',
               month: 'short',
               hour: '2-digit',
@@ -327,6 +340,18 @@ function formatDate(value: string | null): string {
                     WhatsApp
                 </Button>
                 <p
+                    v-else
+                    class="self-center text-[0.82rem] text-muted"
+                >
+                    <Link
+                        href="/settings/integrations"
+                        class="font-medium text-primary-600 hover:underline"
+                    >
+                        Connect WhatsApp
+                    </Link>
+                    to chat with this lead.
+                </p>
+                <p
                     v-if="data.email.opted_out"
                     class="self-center text-[0.82rem] text-muted"
                 >
@@ -426,27 +451,55 @@ function formatDate(value: string | null): string {
                 </template>
             </div>
 
-            <!-- Thread -->
+            <div class="flex flex-wrap gap-2">
+                <button
+                    v-for="option in [
+                        ['all', 'All'],
+                        ['whatsapp', 'WhatsApp'],
+                        ['email', 'Email'],
+                    ]"
+                    :key="option[0]"
+                    type="button"
+                    class="rounded-full border px-3 py-1 text-[0.8rem]"
+                    :class="
+                        channel === option[0]
+                            ? 'border-primary-600 bg-primary-50 text-primary-700'
+                            : 'border-border text-muted'
+                    "
+                    @click="channel = option[0] as 'all' | 'email' | 'whatsapp'"
+                >
+                    {{ option[1] }}
+                </button>
+            </div>
+
             <div
-                v-if="data.messages.length === 0"
+                v-if="visibleMessages.length === 0"
                 class="rounded-xl border border-border bg-surface px-4 py-10 text-center text-[0.9rem] text-muted"
             >
                 No messages yet.
             </div>
 
-            <ol v-else class="space-y-2">
+            <ol v-else class="flex flex-col gap-2">
                 <li
-                    v-for="message in data.messages"
+                    v-for="message in visibleMessages"
                     :key="message.id"
-                    class="max-w-[90%] rounded-xl border p-3"
+                    class="max-w-[85%] rounded-2xl px-3 py-2"
                     :class="
                         message.direction === 'inbound'
-                            ? 'border-border bg-surface'
-                            : 'dark:bg-primary-950 ml-auto border-primary-200 bg-primary-50 dark:border-primary-900'
+                            ? 'self-start rounded-bl-md border border-border bg-surface'
+                            : message.channel === 'whatsapp'
+                              ? 'self-end rounded-br-md bg-primary-600 text-white'
+                              : 'dark:bg-primary-950 self-end rounded-br-md border border-primary-200 bg-primary-50 dark:border-primary-900'
                     "
                 >
                     <div
-                        class="flex flex-wrap items-center gap-2 text-[0.75rem] text-muted"
+                        class="flex flex-wrap items-center gap-2 text-[0.72rem]"
+                        :class="
+                            message.direction === 'outbound' &&
+                            message.channel === 'whatsapp'
+                                ? 'text-white/80'
+                                : 'text-muted'
+                        "
                     >
                         <component
                             :is="
@@ -464,21 +517,35 @@ function formatDate(value: string | null): string {
                                   ? `Follow-up ${message.step}`
                                   : (message.by ?? 'Sent')
                         }}</span>
-                        <span>· {{ formatDate(message.at) }}</span>
-                        <span v-if="message.direction === 'outbound'"
-                            >· {{ message.status_label }}</span
-                        >
+                        <span v-if="message.direction === 'outbound'">
+                            · {{ message.status_label }}
+                        </span>
                     </div>
                     <p
                         v-if="message.subject"
-                        class="mt-1 text-[0.88rem] font-medium text-strong"
+                        class="mt-1 text-[0.88rem] font-medium"
+                        :class="
+                            message.direction === 'outbound' &&
+                            message.channel === 'whatsapp'
+                                ? 'text-white'
+                                : 'text-strong'
+                        "
                     >
                         {{ message.subject }}
                     </p>
-                    <p
-                        class="mt-1 text-[0.88rem] whitespace-pre-line text-body"
-                    >
+                    <p class="mt-1 text-[0.88rem] whitespace-pre-line">
                         {{ message.body }}
+                    </p>
+                    <p
+                        class="mt-1 text-[0.72rem]"
+                        :class="
+                            message.direction === 'outbound' &&
+                            message.channel === 'whatsapp'
+                                ? 'text-white/75'
+                                : 'text-muted'
+                        "
+                    >
+                        {{ formatDate(message.at) }}
                     </p>
                     <p
                         v-if="message.error"

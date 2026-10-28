@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Tenders\Services;
 
+use App\Domain\Tenders\Contracts\TenderSource;
 use App\Domain\Tenders\DataObjects\TenderNotice;
 use Carbon\CarbonImmutable;
 use DOMDocument;
@@ -26,9 +27,14 @@ use Throwable;
  *
  * @see https://epms.ppra.gov.pk/public/tenders/active-tenders
  */
-final class PpraTenderSource
+final class PpraTenderSource implements TenderSource
 {
     public const SOURCE = 'ppra';
+
+    public function key(): string
+    {
+        return self::SOURCE;
+    }
 
     private const BASE_URL = 'https://epms.ppra.gov.pk';
 
@@ -131,6 +137,8 @@ final class PpraTenderSource
         $fields = $detail === null ? [] : $this->detailFields($xpath, $detail);
 
         return new TenderNotice(
+            source: self::SOURCE,
+            country: 'Pakistan',
             reference: $reference,
             title: $title,
             url: $href === null ? self::BASE_URL.'/public/tenders/tender-details/'.rawurlencode($reference) : $this->absolute($href),

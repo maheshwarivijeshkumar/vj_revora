@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useClock } from '@/composables/useClock';
 import { Head, router } from '@inertiajs/vue3';
 import { Building2, Mail, Pencil, Phone, Plus, Trash2 } from 'lucide-vue-next';
 import { computed, ref, watch, onMounted } from 'vue';
@@ -17,6 +18,7 @@ import SelectMenu, { type SelectOption } from '@/components/ui/SelectMenu.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { useAuthorization } from '@/composables/useAuthorization';
 
+const { timeZone } = useClock();
 type ContactRow = {
     id: number;
     uuid: string;
@@ -187,7 +189,7 @@ function formatDate(value: string | null): string {
         return '—';
     }
 
-    return new Date(value).toLocaleDateString(undefined, {
+    return new Date(value).toLocaleDateString(undefined, { timeZone: timeZone.value,
         day: 'numeric',
         month: 'short',
         year: 'numeric',

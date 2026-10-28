@@ -315,11 +315,8 @@ function submit(): void {
                 <legend class="text-[0.88rem] font-medium text-strong">
                     Works at
                 </legend>
-                <p class="mt-1 text-[0.82rem] text-muted">
-                    Choose a company already on file, or name a new one.
-                </p>
 
-                <div class="mt-3 grid gap-4 sm:grid-cols-2">
+                <div class="mt-1.5 grid gap-4 sm:grid-cols-2">
                     <FormField
                         id="contact-company"
                         label="Existing company"
@@ -371,6 +368,9 @@ function submit(): void {
                         />
                     </FormField>
                 </div>
+                <p class="mt-1.5 text-[0.82rem] leading-snug text-muted">
+                    Choose a company already on file, or name a new one.
+                </p>
             </fieldset>
 
             <div

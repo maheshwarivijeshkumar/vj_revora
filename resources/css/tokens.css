@@ -152,22 +152,22 @@
     --info-soft: var(--blue-900);
     --info-strong: var(--blue-300);
 
-    --text-strong: var(--slate-50);
-    --text-body: var(--slate-300);
-    --text-muted: var(--slate-400);
-    --text-soft: var(--slate-500);
+    --text-strong: #f4f7fb;
+    --text-body: #c5ced8;
+    --text-muted: #8b97a6;
+    --text-soft: #6b7684;
     --text-inverse: var(--slate-900);
 
-    --border: #24364d;
-    --border-soft: #1a2a3f;
-    --border-strong: #334f6e;
+    --border: #2a3441;
+    --border-soft: #1c2530;
+    --border-strong: #3a4656;
 
-    --surface: #0f1b2d;
-    --surface-alt: #12233a;
-    --surface-sunken: #0b1524;
-    --page: var(--slate-950);
-    --sidebar: #0b1524;
-    --sidebar-hover: #12233a;
+    --surface: #141a21;
+    --surface-alt: #1a212b;
+    --surface-sunken: #10151b;
+    --page: #0b0f14;
+    --sidebar: #0e1318;
+    --sidebar-hover: #1a212b;
     --overlay: rgb(2 6 16 / 0.7);
 
     --shadow-card: 0 1px 2px rgb(0 0 0 / 0.3), 0 1px 3px rgb(0 0 0 / 0.36);

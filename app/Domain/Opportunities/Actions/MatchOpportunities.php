@@ -14,8 +14,8 @@ use App\Models\Tender;
 use Illuminate\Database\Eloquent\Collection;
 
 /**
- * Scores every live tender and job post against the workspace's profiles and
- * keeps the ones worth a look (§19).
+ * Scores job posts against the workspace's profiles and keeps the ones
+ * worth a proposal. Government tenders stay on the tenders page.
  *
  * Runs in the workspace's context. Each opportunity is matched to whichever
  * profile fits it best. Untouched matches are re-scored as the profiles
@@ -47,12 +47,6 @@ final readonly class MatchOpportunities
             ->keyBy(fn (OpportunityMatch $m): string => $m->opportunity_type.':'.$m->opportunity_id);
 
         $created = 0;
-
-        Tender::query()->open()->chunkById(500, function (Collection $tenders) use ($profiles, $existing, &$created): void {
-            foreach ($tenders as $tender) {
-                $created += $this->consider(OpportunityMatch::TYPE_TENDER, $tender, $profiles, $existing->get('tender:'.$tender->id));
-            }
-        });
 
         JobPost::query()
             ->where('last_seen_at', '>=', now()->subDays(self::JOB_MAX_AGE_DAYS))

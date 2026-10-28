@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Integrations\Providers;
 
+use App\Domain\Campaigns\DataObjects\RemoteCampaign;
 use App\Domain\Integrations\Contracts\LeadAdsProvider;
 use App\Domain\Integrations\DataObjects\DiscoveredAccount;
 use App\Domain\Integrations\DataObjects\ProviderLead;
@@ -167,6 +168,73 @@ final class MetaLeadAdsProvider implements LeadAdsProvider
                 'lead_ads_ad_id' => $lead['ad_id'] ?? null,
                 'lead_ads_campaign_id' => $lead['campaign_id'] ?? null,
             ]),
+        );
+    }
+
+    /**
+     * Campaigns on the ad accounts this Page can see.
+     *
+     * One Meta campaign can run on Facebook and Instagram, so it is stored
+     * once. A Page token that can read leads sometimes cannot list ad
+     * accounts; the caller then keeps whatever the leads already named.
+     *
+     * @return iterable<RemoteCampaign>
+     */
+    public function fetchCampaigns(IntegrationConnection $connection): iterable
+    {
+        try {
+            foreach ($this->paginate($connection->account_id.'/assigned_ad_accounts', [
+                'fields' => 'id,name',
+                'access_token' => $connection->access_token,
+                'limit' => 100,
+            ]) as $account) {
+                $accountId = (string) ($account['id'] ?? '');
+
+                if ($accountId === '') {
+                    continue;
+                }
+
+                try {
+                    foreach ($this->paginate($accountId.'/campaigns', [
+                        'fields' => 'id,name,effective_status,objective,start_time,stop_time',
+                        'access_token' => $connection->access_token,
+                        'limit' => 100,
+                    ]) as $campaign) {
+                        $remote = $this->remoteCampaign($campaign);
+
+                        if ($remote instanceof RemoteCampaign) {
+                            yield $remote;
+                        }
+                    }
+                } catch (ProviderAuthException|ProviderRequestException) {
+                    continue;
+                }
+            }
+        } catch (ProviderAuthException|ProviderRequestException) {
+            return;
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $campaign
+     */
+    private function remoteCampaign(array $campaign): ?RemoteCampaign
+    {
+        $id = (string) ($campaign['id'] ?? '');
+        $name = trim((string) ($campaign['name'] ?? ''));
+
+        if ($id === '' || $name === '') {
+            return null;
+        }
+
+        return new RemoteCampaign(
+            platform: 'meta',
+            externalId: $id,
+            name: $name,
+            status: isset($campaign['effective_status']) ? (string) $campaign['effective_status'] : null,
+            objective: isset($campaign['objective']) ? (string) $campaign['objective'] : null,
+            startsAt: isset($campaign['start_time']) ? Carbon::parse((string) $campaign['start_time']) : null,
+            endsAt: isset($campaign['stop_time']) ? Carbon::parse((string) $campaign['stop_time']) : null,
         );
     }
 

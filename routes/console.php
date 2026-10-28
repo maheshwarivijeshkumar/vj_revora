@@ -4,6 +4,7 @@ use App\Console\Commands\FetchOpportunities;
 use App\Console\Commands\FetchTenders;
 use App\Console\Commands\PurgeDeletedDocuments;
 use App\Console\Commands\RunMessaging;
+use App\Console\Commands\SyncCampaigns;
 use App\Console\Commands\SyncLeadAds;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
@@ -29,9 +30,14 @@ Schedule::command(PurgeDeletedDocuments::class)->dailyAt('03:30');
 // last, and the per-lead event id makes the overlap free (§57, §58).
 Schedule::command(SyncLeadAds::class)->hourly()->withoutOverlapping();
 
-// Government of Pakistan tenders (PPRA). Twice a day, morning and afternoon
-// Pakistan time, which catches each day's new notices well before anyone has
-// to act on them. Runs in the background: a full pass is ~40 pages.
+// Campaign names follow the same hour. A failed ad-account read still keeps
+// the campaigns already stored on leads.
+Schedule::command(SyncCampaigns::class)->hourly()->withoutOverlapping();
+
+// Government tenders: Pakistan PPRA, UK Find a Tender, Contracts Finder and
+// Public Contracts Scotland. Twice a day, morning and afternoon Pakistan time,
+// which is also mid-morning and late afternoon in the UK. A full pass pages
+// the UK feeds, so it runs in the background.
 Schedule::command(FetchTenders::class)
     ->twiceDaily(8, 16)
     ->timezone('Asia/Karachi')

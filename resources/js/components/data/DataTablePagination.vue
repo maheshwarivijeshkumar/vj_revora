@@ -87,7 +87,10 @@ const pages = computed<(number | 'gap')[]>(() => {
         </div>
 
         <div class="flex items-center gap-3">
-            <label class="flex items-center gap-2 text-[0.85rem] text-muted">
+            <label
+                v-if="pageSizes.length > 1"
+                class="flex items-center gap-2 text-[0.85rem] text-muted"
+            >
                 <span class="hidden sm:inline">Rows</span>
                 <select
                     :value="perPage"

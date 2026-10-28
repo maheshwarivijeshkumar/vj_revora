@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useClock } from '@/composables/useClock';
 import { Head, Link, router } from '@inertiajs/vue3';
 import {
     ArrowLeft,
@@ -30,6 +31,7 @@ import StatusBadge from '@/components/ui/StatusBadge.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { useAuthorization } from '@/composables/useAuthorization';
 
+const { timeZone } = useClock();
 const props = defineProps<{
     deal: {
         id: number;
@@ -216,7 +218,7 @@ function formatDate(value: string | null, withTime = false): string {
         return '—';
     }
 
-    return new Date(value).toLocaleString(undefined, {
+    return new Date(value).toLocaleString(undefined, { timeZone: timeZone.value,
         day: 'numeric',
         month: 'short',
         year: 'numeric',

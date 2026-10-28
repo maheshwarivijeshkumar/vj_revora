@@ -68,6 +68,9 @@ const actions = computed(() =>
     [
         { label: 'Go to leads', href: '/leads', permission: 'lead.view' },
         { label: 'Go to deal board', href: '/deals', permission: 'deal.view' },
+        { label: 'Go to clients', href: '/clients', permission: 'company.view' },
+        { label: 'Go to invoices', href: '/invoices', permission: 'billing.view' },
+        { label: 'Go to projects', href: '/projects', permission: 'company.view' },
         { label: 'Go to dashboard', href: '/dashboard', permission: null },
         {
             label: 'API keys',

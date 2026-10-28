@@ -1,4 +1,4 @@
-import type { NavSection } from '@/types/app';
+import type { NavArea, NavSection } from '@/types/app';
 
 /**
  * Sidebar navigation (§60, §108.1).
@@ -12,24 +12,42 @@ import type { NavSection } from '@/types/app';
  * one icon library, consistently (§101.18).
  */
 
-export const tenantNavigation: NavSection[] = [
+export const tenantAreas: NavArea[] = [
     {
-        items: [
+        id: 'home',
+        label: 'Home',
+        icon: 'LayoutDashboard',
+        sections: [
             {
-                label: 'Dashboard',
-                href: '/dashboard',
-                icon: 'LayoutDashboard',
-                permission: 'dashboard.view',
+                items: [
+                    {
+                        label: 'Dashboard',
+                        href: '/dashboard',
+                        icon: 'LayoutDashboard',
+                        permission: 'dashboard.view',
+                    },
+                ],
             },
         ],
     },
     {
+        id: 'crm',
         label: 'CRM',
-        items: [
+        icon: 'UsersRound',
+        sections: [
+            {
+                label: 'CRM',
+                items: [
             {
                 label: 'Leads',
                 href: '/leads',
                 icon: 'UsersRound',
+                permission: 'lead.view',
+            },
+            {
+                label: 'Find businesses',
+                href: '/discovery',
+                icon: 'MapPin',
                 permission: 'lead.view',
             },
             {
@@ -63,151 +81,181 @@ export const tenantNavigation: NavSection[] = [
                 permission: 'deal.view',
             },
             {
-                label: 'Pipelines',
-                href: '/pipelines',
-                icon: 'GitBranch',
-                permission: 'pipeline.view',
-            },
-        ],
-    },
-    {
-        label: 'Engage',
-        items: [
-            {
-                label: 'Inbox',
-                href: '/inbox',
-                icon: 'Inbox',
-                permission: 'conversation.view',
-            },
-            {
                 label: 'Campaigns',
                 href: '/campaigns',
                 icon: 'Megaphone',
                 permission: 'campaign.view',
             },
             {
-                label: 'Automation',
-                href: '/automation',
-                icon: 'Workflow',
-                permission: 'automation.view',
-                feature: 'automation',
-            },
-            {
-                label: 'AI',
-                href: '/ai',
-                icon: 'Sparkles',
-                permission: 'ai.view',
-                feature: 'ai_agents',
-            },
-            {
-                label: 'Appointments',
-                href: '/appointments',
+                label: 'Calendar',
+                href: '/calendar',
                 icon: 'CalendarDays',
-                permission: 'appointment.view',
+                permission: 'lead.view',
             },
-            {
-                label: 'Tasks',
-                href: '/tasks',
-                icon: 'CheckSquare',
-                permission: 'task.view',
+                ],
             },
         ],
     },
     {
-        label: 'Insight',
-        items: [
+        id: 'work',
+        label: 'Work',
+        icon: 'FolderKanban',
+        sections: [
+            {
+                label: 'Work',
+                items: [
+            {
+                label: 'Projects',
+                href: '/projects',
+                icon: 'FolderKanban',
+                permission: 'company.view',
+            },
+            {
+                label: 'Schedule',
+                href: '/schedule',
+                icon: 'CalendarClock',
+                permission: 'task.view',
+            },
+            {
+                label: 'Clients',
+                href: '/clients',
+                icon: 'UserRoundCheck',
+                permission: 'company.view',
+            },
+            {
+                label: 'Estimates',
+                href: '/estimates',
+                icon: 'FileSpreadsheet',
+                permission: 'quote.view',
+            },
+            {
+                label: 'Invoices',
+                href: '/invoices',
+                icon: 'Receipt',
+                permission: 'billing.view',
+            },
+            {
+                label: 'Crew',
+                href: '/crew',
+                icon: 'HardHat',
+                permission: 'company.view',
+            },
+            {
+                label: 'Subcontractors',
+                href: '/subcontractors',
+                icon: 'Truck',
+                permission: 'company.view',
+            },
+            {
+                label: 'Materials',
+                href: '/materials',
+                icon: 'Package',
+                permission: 'product.view',
+            },
+            {
+                label: 'Change orders',
+                href: '/change-orders',
+                icon: 'FileDiff',
+                permission: 'quote.view',
+            },
+            {
+                label: 'Documents',
+                href: '/documents',
+                icon: 'Files',
+                permission: 'document.view',
+            },
+            {
+                label: 'Messages',
+                href: '/messages',
+                icon: 'Inbox',
+                permission: 'conversation.view',
+            },
             {
                 label: 'Reports',
                 href: '/reports',
                 icon: 'ChartNoAxesCombined',
                 permission: 'report.view',
             },
+                ],
+            },
         ],
     },
     {
-        label: 'Configure',
-        items: [
+        id: 'settings',
+        label: 'Settings',
+        icon: 'Settings2',
+        sections: [
             {
-                label: 'Integrations',
-                href: '/settings/integrations',
-                icon: 'PlugZap',
-                permission: 'integration.view',
+                label: 'Workspace',
+                items: [
+                    {
+                        label: 'Setup',
+                        href: '/settings/setup',
+                        icon: 'ListChecks',
+                        permission: 'settings.view',
+                    },
+                    {
+                        label: 'Services',
+                        href: '/settings/services',
+                        icon: 'BriefcaseBusiness',
+                        permission: 'settings.view',
+                    },
+                    {
+                        label: 'Integrations',
+                        href: '/settings/integrations',
+                        icon: 'PlugZap',
+                        permission: 'integration.view',
+                    },
+                ],
             },
             {
-                label: 'Setup',
-                href: '/settings/setup',
-                icon: 'ListChecks',
-                permission: 'settings.view',
+                label: 'Channels',
+                items: [
+                    {
+                        label: 'Email',
+                        href: '/settings/email',
+                        icon: 'Mail',
+                        permission: 'integration.view',
+                    },
+                    {
+                        label: 'Follow-up',
+                        href: '/settings/follow-up',
+                        icon: 'Send',
+                        permission: 'template.view',
+                    },
+                ],
             },
             {
-                label: 'Services',
-                href: '/settings/services',
-                icon: 'BriefcaseBusiness',
-                permission: 'settings.view',
-            },
-            {
-                label: 'Email',
-                href: '/settings/email',
-                icon: 'Mail',
-                permission: 'integration.view',
-            },
-            {
-                label: 'Follow-up',
-                href: '/settings/follow-up',
-                icon: 'Send',
-                permission: 'template.view',
-            },
-            {
-                label: 'WhatsApp',
-                href: '/settings/whatsapp',
-                icon: 'MessageCircle',
-                permission: 'integration.view',
-            },
-            {
-                label: 'Forms',
-                href: '/forms',
-                icon: 'FileInput',
-                permission: 'form.view',
-            },
-            {
-                label: 'Templates',
-                href: '/templates',
-                icon: 'LayoutTemplate',
-                permission: 'template.view',
-            },
-            {
-                label: 'API',
-                href: '/settings/api-keys',
-                icon: 'Braces',
-                permission: 'api.view',
-            },
-            {
-                label: 'Webhooks',
-                href: '/settings/webhooks',
-                icon: 'Webhook',
-                permission: 'webhook.view',
-            },
-            {
-                label: 'Audit log',
-                href: '/settings/audit',
-                icon: 'ScrollText',
-                permission: 'audit.view',
-            },
-            {
-                label: 'Billing',
-                href: '/billing',
-                icon: 'CreditCard',
-                permission: 'billing.view',
-            },
-            {
-                label: 'Settings',
-                href: '/settings',
-                icon: 'Settings2',
-                permission: 'settings.view',
+                label: 'Developer',
+                items: [
+                    {
+                        label: 'API tokens',
+                        href: '/settings/api-keys',
+                        icon: 'Braces',
+                        permission: 'api.view',
+                    },
+                    {
+                        label: 'Webhooks',
+                        href: '/settings/webhooks',
+                        icon: 'Webhook',
+                        permission: 'webhook.view',
+                    },
+                    {
+                        label: 'Audit log',
+                        href: '/settings/audit',
+                        icon: 'ScrollText',
+                        permission: 'audit.view',
+                    },
+                ],
             },
         ],
     },
 ];
+
+/** Every section, for callers that do not care which rail icon owns it. */
+export const tenantNavigation: NavSection[] = tenantAreas.flatMap(
+    (area) => area.sections,
+);
 
 /** Platform admin navigation (§60). Served under a separate guard. */
 export const platformNavigation: NavSection[] = [

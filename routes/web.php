@@ -2,9 +2,17 @@
 
 declare(strict_types=1);
 
+use App\Http\Controllers\Account\NotificationController;
+use App\Http\Controllers\Account\PresenceController;
+use App\Http\Controllers\Account\TimezoneController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Branding\BrandPreviewController;
 use App\Http\Controllers\Crm\BulkLeadController;
+use App\Http\Controllers\Crm\BusinessDiscoveryController;
+use App\Http\Controllers\Crm\CalendarController;
+use App\Http\Controllers\Crm\CampaignController;
+use App\Http\Controllers\Crm\ChangeOrderController;
+use App\Http\Controllers\Crm\ClientController;
 use App\Http\Controllers\Crm\CompanyController;
 use App\Http\Controllers\Crm\CompanyWriteController;
 use App\Http\Controllers\Crm\ContactController;
@@ -12,15 +20,25 @@ use App\Http\Controllers\Crm\ContactWriteController;
 use App\Http\Controllers\Crm\DealBoardController;
 use App\Http\Controllers\Crm\DealDetailController;
 use App\Http\Controllers\Crm\DealWriteController;
+use App\Http\Controllers\Crm\DirectoryController;
 use App\Http\Controllers\Crm\DocumentController;
+use App\Http\Controllers\Crm\DocumentLibraryController;
+use App\Http\Controllers\Crm\EstimateController;
+use App\Http\Controllers\Crm\InvoiceController;
+use App\Http\Controllers\Crm\LeadClientController;
 use App\Http\Controllers\Crm\LeadController;
 use App\Http\Controllers\Crm\LeadConversationController;
 use App\Http\Controllers\Crm\LeadDetailController;
 use App\Http\Controllers\Crm\LeadExportController;
 use App\Http\Controllers\Crm\LeadWriteController;
+use App\Http\Controllers\Crm\MessageInboxController;
 use App\Http\Controllers\Crm\OpportunityController;
+use App\Http\Controllers\Crm\ProjectController;
+use App\Http\Controllers\Crm\ReportController;
+use App\Http\Controllers\Crm\ScheduleController;
 use App\Http\Controllers\Crm\TenderController;
 use App\Http\Controllers\Crm\TimelineController;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\IntegrationController;
 use App\Http\Controllers\Marketing\ContactController as ContactEnquiryController;
 use App\Http\Controllers\Marketing\WaitlistController;
@@ -114,7 +132,16 @@ Route::middleware('guest')->group(function (): void {
 Route::middleware(['auth', 'tenant.active'])->group(function (): void {
     Route::post('/logout', [AuthenticatedSessionController::class, 'destroy'])->name('logout');
 
-    Route::inertia('/dashboard', 'Dashboard')->name('dashboard');
+    Route::patch('/account/timezone', [TimezoneController::class, 'update'])
+        ->name('account.timezone');
+
+    Route::patch('/account/presence', [PresenceController::class, 'update'])
+        ->name('account.presence');
+
+    Route::patch('/account/notifications/{notification}', [NotificationController::class, 'update'])
+        ->name('account.notifications.read');
+
+    Route::get('/dashboard', DashboardController::class)->name('dashboard');
 
     // Global search (§45, §120). No permission of its own: the service searches
     // only the entities the user may view, so an empty result is the right
@@ -134,6 +161,10 @@ Route::middleware(['auth', 'tenant.active'])->group(function (): void {
     Route::get('/tenders', [TenderController::class, 'index'])
         ->middleware('permission:lead.view')
         ->name('tenders.index');
+
+    Route::post('/tenders/sync', [TenderController::class, 'sync'])
+        ->middleware('permission:lead.view')
+        ->name('tenders.sync');
 
     // Declared before the write routes so `/leads/bulk` is not swallowed by
     // the `{lead}` parameter, and after the index so `/leads` still lists.
@@ -206,6 +237,10 @@ Route::middleware(['auth', 'tenant.active'])->group(function (): void {
     // Uploads live on a private disk; `download` is the only way back out, and
     // it runs the session, tenant and permission checks first.
 
+    Route::get('/documents', DocumentLibraryController::class)
+        ->middleware('permission:document.view')
+        ->name('documents.index');
+
     Route::post('/documents', [DocumentController::class, 'store'])
         ->middleware('permission:document.create')
         ->name('documents.store');
@@ -276,12 +311,95 @@ Route::middleware(['auth', 'tenant.active'])->group(function (): void {
         ->middleware('permission:deal.update')
         ->name('deals.move');
 
+    Route::get('/campaigns', [CampaignController::class, 'index'])
+        ->middleware('permission:campaign.view')
+        ->name('campaigns.index');
+
+    Route::post('/campaigns/sync', [CampaignController::class, 'sync'])
+        ->middleware('permission:campaign.manage')
+        ->name('campaigns.sync');
+
+    // Approved leads and won deals. The page hides whichever set the user
+    // cannot view, and refuses the visit when they can see neither.
+    Route::get('/calendar', CalendarController::class)->name('calendar');
+
+    // Work that starts when a lead is won: client, project, estimate, invoice.
+    Route::get('/clients', [ClientController::class, 'index'])->middleware('permission:company.view')->name('clients.index');
+    Route::post('/clients', [ClientController::class, 'store'])->middleware('permission:company.create')->name('clients.store');
+    Route::get('/clients/{client}', [ClientController::class, 'show'])->middleware('permission:company.view')->name('clients.show');
+    Route::patch('/clients/{client}', [ClientController::class, 'update'])->middleware('permission:company.update')->name('clients.update');
+    Route::post('/leads/{lead}/client', [LeadClientController::class, 'store'])->middleware('permission:company.create')->name('leads.client.store');
+
+    Route::get('/projects', [ProjectController::class, 'index'])->middleware('permission:company.view')->name('projects.index');
+    Route::post('/projects', [ProjectController::class, 'store'])->middleware('permission:company.create')->name('projects.store');
+    Route::get('/projects/{project}', [ProjectController::class, 'show'])->middleware('permission:company.view')->name('projects.show');
+    Route::patch('/projects/{project}', [ProjectController::class, 'update'])->middleware('permission:company.update')->name('projects.update');
+
+    Route::get('/estimates', [EstimateController::class, 'index'])->middleware('permission:quote.view')->name('estimates.index');
+    Route::post('/estimates', [EstimateController::class, 'store'])->middleware('permission:quote.create')->name('estimates.store');
+    Route::get('/estimates/{estimate}', [EstimateController::class, 'show'])->middleware('permission:quote.view')->name('estimates.show');
+    Route::post('/estimates/{estimate}/send', [EstimateController::class, 'send'])->middleware('permission:quote.update')->name('estimates.send');
+    Route::post('/estimates/{estimate}/accept', [EstimateController::class, 'accept'])->middleware('permission:quote.update')->name('estimates.accept');
+    Route::post('/estimates/{estimate}/decline', [EstimateController::class, 'decline'])->middleware('permission:quote.update')->name('estimates.decline');
+
+    Route::get('/invoices', [InvoiceController::class, 'index'])->middleware('permission:billing.view')->name('invoices.index');
+    Route::post('/invoices', [InvoiceController::class, 'store'])->middleware('permission:billing.manage')->name('invoices.store');
+    Route::get('/invoices/{invoice}', [InvoiceController::class, 'show'])->middleware('permission:billing.view')->name('invoices.show');
+    Route::post('/estimates/{estimate}/invoice', [InvoiceController::class, 'fromEstimate'])->middleware('permission:billing.manage')->name('invoices.from-estimate');
+    Route::post('/invoices/{invoice}/send', [InvoiceController::class, 'send'])->middleware('permission:billing.manage')->name('invoices.send');
+    Route::post('/invoices/{invoice}/pay', [InvoiceController::class, 'pay'])->middleware('permission:billing.manage')->name('invoices.pay');
+    Route::post('/invoices/{invoice}/void', [InvoiceController::class, 'void'])->middleware('permission:billing.manage')->name('invoices.void');
+
+    Route::get('/schedule', [ScheduleController::class, 'index'])->middleware('permission:task.view')->name('schedule.index');
+    Route::post('/schedule', [ScheduleController::class, 'store'])->middleware('permission:task.create')->name('schedule.store');
+    Route::delete('/schedule/{scheduleEntry}', [ScheduleController::class, 'destroy'])->middleware('permission:task.delete')->name('schedule.destroy');
+
+    Route::get('/crew', [DirectoryController::class, 'crew'])->middleware('permission:company.view')->name('crew.index');
+    Route::post('/crew', [DirectoryController::class, 'storeCrew'])->middleware('permission:company.create')->name('crew.store');
+    Route::delete('/crew/{crewMember}', [DirectoryController::class, 'destroyCrew'])->middleware('permission:company.delete')->name('crew.destroy');
+
+    Route::get('/subcontractors', [DirectoryController::class, 'subcontractors'])->middleware('permission:company.view')->name('subcontractors.index');
+    Route::post('/subcontractors', [DirectoryController::class, 'storeSubcontractor'])->middleware('permission:company.create')->name('subcontractors.store');
+    Route::delete('/subcontractors/{subcontractor}', [DirectoryController::class, 'destroySubcontractor'])->middleware('permission:company.delete')->name('subcontractors.destroy');
+
+    Route::get('/materials', [DirectoryController::class, 'materials'])->middleware('permission:product.view')->name('materials.index');
+    Route::post('/materials', [DirectoryController::class, 'storeMaterial'])->middleware('permission:product.create')->name('materials.store');
+    Route::delete('/materials/{material}', [DirectoryController::class, 'destroyMaterial'])->middleware('permission:product.delete')->name('materials.destroy');
+
+    Route::get('/change-orders', [ChangeOrderController::class, 'index'])->middleware('permission:quote.view')->name('change-orders.index');
+    Route::post('/change-orders', [ChangeOrderController::class, 'store'])->middleware('permission:quote.create')->name('change-orders.store');
+    Route::patch('/change-orders/{changeOrder}', [ChangeOrderController::class, 'update'])->middleware('permission:quote.update')->name('change-orders.update');
+
+    Route::get('/messages', MessageInboxController::class)->middleware('permission:conversation.view')->name('messages.index');
+    Route::get('/reports', ReportController::class)->middleware('permission:report.view')->name('reports.index');
+
+    // Local businesses by city. Search is read-only; adding them is a new lead.
+    Route::get('/discovery', [BusinessDiscoveryController::class, 'index'])
+        ->middleware('permission:lead.view')
+        ->name('discovery.index');
+
+    Route::post('/discovery/search', [BusinessDiscoveryController::class, 'search'])
+        ->middleware(['permission:lead.view', 'throttle:10,1'])
+        ->name('discovery.search');
+
+    Route::post('/discovery/import', [BusinessDiscoveryController::class, 'import'])
+        ->middleware(['permission:lead.create', 'throttle:20,1'])
+        ->name('discovery.import');
+
     // --- Opportunities -----------------------------------------------------
-    // Tenders and job posts scored against what the workspace sells.
+    // Job posts scored against what the workspace sells. Tenders are separate.
 
     Route::get('/opportunities', [OpportunityController::class, 'index'])
         ->middleware('permission:lead.view')
         ->name('opportunities.index');
+
+    Route::post('/opportunities/sync', [OpportunityController::class, 'sync'])
+        ->middleware('permission:lead.update')
+        ->name('opportunities.sync');
+
+    Route::patch('/opportunities/resume', [OpportunityController::class, 'resume'])
+        ->middleware('permission:settings.manage')
+        ->name('opportunities.resume');
 
     Route::middleware('permission:lead.update')->group(function (): void {
         Route::patch('/opportunities/{match}', [OpportunityController::class, 'update'])
@@ -416,6 +534,10 @@ Route::middleware(['auth', 'tenant.active'])->group(function (): void {
         ->name('integrations.index');
 
     Route::middleware('permission:integration.connect')->group(function (): void {
+        Route::put('/settings/integrations/apps/{provider}', [IntegrationController::class, 'updateApp'])
+            ->whereIn('provider', ['meta', 'linkedin', 'whatsapp', 'google', 'microsoft', 'upwork'])
+            ->name('integrations.apps.update');
+
         Route::get('/settings/integrations/{platform}/connect', [IntegrationController::class, 'connect'])
             ->name('integrations.connect');
 

@@ -134,5 +134,11 @@ function submit(): void {
                 </form>
             </div>
         </div>
+
+        <footer class="border-t border-border px-5 py-3 text-center">
+            <p class="text-[0.78rem] text-muted">
+                &copy; {{ new Date().getFullYear() }} Berg Media Digital. All rights reserved.
+            </p>
+        </footer>
     </div>
 </template>

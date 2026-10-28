@@ -91,7 +91,7 @@ function disconnect(): void {
                 </p>
 
                 <form class="mt-4" novalidate @submit.prevent="save">
-                    <div class="grid gap-4 sm:grid-cols-2">
+                    <div class="grid items-start gap-x-4 gap-y-5 sm:grid-cols-2">
                         <FormField
                             id="wa-phone-id"
                             label="Phone number ID"

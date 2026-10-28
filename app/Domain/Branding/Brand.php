@@ -61,8 +61,8 @@ final class Brand
             'name' => $brand['name'] ?? 'Revora',
             'tagline' => $brand['tagline'] ?? '',
             'concept' => $brand['concept'] ?? '',
-            'primary' => $brand['primary'] ?? '#059669',
-            'secondary' => $brand['secondary'] ?? '#10B981',
+            'primary' => $brand['primary'] ?? '#0F9F94',
+            'secondary' => $brand['secondary'] ?? '#14B8A6',
             'accent' => $brand['accent'] ?? '#2563EB',
             'assets' => $this->assets($key),
         ];

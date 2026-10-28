@@ -203,7 +203,7 @@ it('generates the PWA manifest from the active brand', function (): void {
     $this->getJson('/site.webmanifest')
         ->assertOk()
         ->assertJsonPath('name', 'Revora')
-        ->assertJsonPath('theme_color', '#059669');
+        ->assertJsonPath('theme_color', '#0F9F94');
 });
 
 // --- Error pages ------------------------------------------------------------

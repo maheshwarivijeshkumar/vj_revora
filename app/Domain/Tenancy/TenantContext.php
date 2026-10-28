@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Tenancy;
 
+use App\Domain\Integrations\ApplyWorkspaceCredentials;
 use App\Domain\Tenancy\Exceptions\MissingTenantContextException;
 use App\Domain\Tenancy\Scopes\TenantScope;
 use App\Models\Tenant;
@@ -31,11 +32,15 @@ final class TenantContext
     public function set(Tenant $tenant): void
     {
         $this->tenant = $tenant;
+
+        app(ApplyWorkspaceCredentials::class)->apply();
     }
 
     public function forget(): void
     {
         $this->tenant = null;
+
+        app(ApplyWorkspaceCredentials::class)->clear();
     }
 
     public function get(): ?Tenant
@@ -104,12 +109,17 @@ final class TenantContext
     public function runAs(Tenant $tenant, Closure $callback): mixed
     {
         $previous = $this->tenant;
-        $this->tenant = $tenant;
+        $this->set($tenant);
 
         try {
             return $callback();
         } finally {
-            $this->tenant = $previous;
+            if ($previous instanceof Tenant) {
+                $this->set($previous);
+            } else {
+                $this->tenant = null;
+                app(ApplyWorkspaceCredentials::class)->clear();
+            }
         }
     }
 }

@@ -123,9 +123,12 @@ it('paginates rather than returning the whole history', function (): void {
 
     $logs = auditProps()['logs'];
 
-    expect($logs['data'])->toHaveCount(50)
+    expect($logs['data'])->toHaveCount(25)
+        ->and($logs['meta']['per_page'])->toBe(25)
         ->and($logs['meta']['total'])->toBe(60)
-        ->and($logs['meta']['last_page'])->toBe(2);
+        ->and($logs['meta']['last_page'])->toBe(3)
+        ->and($logs['meta']['from'])->toBe(1)
+        ->and($logs['meta']['to'])->toBe(25);
 });
 
 // --- Filtering ----------------------------------------------------------------

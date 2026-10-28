@@ -119,9 +119,9 @@ final class SetupController extends Controller
             ),
             $this->step(
                 'tenders',
-                'Pakistan tenders',
+                'Government tenders',
                 Tender::query()->where('last_seen_at', '>=', now()->subDay())->exists(),
-                'Fetched from PPRA at 8 AM and 4 PM Pakistan time. Run "php artisan tenders:fetch" for the first pull.',
+                'Pakistan PPRA, UK Find a Tender, Contracts Finder and Public Contracts Scotland, at 8 AM and 4 PM Pakistan time. Run "php artisan tenders:fetch" for the first pull.',
                 '/tenders',
                 'View tenders',
             ),

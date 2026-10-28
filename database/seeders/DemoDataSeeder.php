@@ -8,6 +8,7 @@ use App\Domain\Deals\Actions\CreateDeal;
 use App\Domain\Leads\Actions\CaptureLead;
 use App\Domain\Leads\Services\LeadNormalizer;
 use App\Models\Company;
+use App\Models\Lead;
 use App\Models\LeadSource;
 use App\Models\Pipeline;
 use App\Models\User;
@@ -25,6 +26,13 @@ final class DemoDataSeeder extends Seeder
 {
     public function run(): void
     {
+        // Re-running the seeder must not stack another copy of the board.
+        if (Lead::query()->where('email', 'amara@northwind.example')->exists()) {
+            $this->command->info('Demo leads already present — left as they are.');
+
+            return;
+        }
+
         // Demo addresses use the reserved `.example` domains (RFC 2606), which
         // exist so they never resolve. Left on, the queued MX check would mark
         // every seeded lead unusable and make verification look broken on a

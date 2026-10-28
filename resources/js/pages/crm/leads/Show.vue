@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useClock } from '@/composables/useClock';
 import { Head, Link, router } from '@inertiajs/vue3';
 import {
     ArrowLeft,
@@ -35,6 +36,7 @@ import StatusBadge from '@/components/ui/StatusBadge.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { useAuthorization } from '@/composables/useAuthorization';
 
+const { timeZone } = useClock();
 type Finding = { check: string; verdict: string; detail: string };
 
 const props = defineProps<{
@@ -53,6 +55,8 @@ const props = defineProps<{
         job_title: string | null;
         website: string | null;
         country: string | null;
+        location: string | null;
+        category: string | null;
         status: string;
         status_label: string;
         status_tone: string;
@@ -68,6 +72,7 @@ const props = defineProps<{
         qualified_at: string | null;
         created_at: string | null;
         merged_into: { id: number; name: string } | null;
+        client: { id: number; name: string } | null;
     };
     score: {
         score: number;
@@ -262,7 +267,7 @@ function formatDate(value: string | null, withTime = false): string {
         return '—';
     }
 
-    return new Date(value).toLocaleString(undefined, {
+    return new Date(value).toLocaleString(undefined, { timeZone: timeZone.value,
         day: 'numeric',
         month: 'short',
         year: 'numeric',
@@ -457,6 +462,24 @@ function cell(value: unknown): string {
                                         {{ lead.website }}
                                     </a>
                                     <span v-else class="text-soft">—</span>
+                                </dd>
+                            </div>
+
+                            <div>
+                                <dt class="text-[0.78rem] text-muted">
+                                    Location
+                                </dt>
+                                <dd class="mt-0.5 text-[0.92rem] text-strong">
+                                    {{ lead.location ?? '—' }}
+                                </dd>
+                            </div>
+
+                            <div v-if="lead.category">
+                                <dt class="text-[0.78rem] text-muted">
+                                    Category
+                                </dt>
+                                <dd class="mt-0.5 text-[0.92rem] text-strong">
+                                    {{ lead.category }}
                                 </dd>
                             </div>
 
@@ -911,6 +934,29 @@ function cell(value: unknown): string {
                                 :label="lead.status_label"
                             />
                         </div>
+                    </div>
+
+                    <div v-if="lead.status === 'won'">
+                        <p class="text-[0.78rem] text-muted">Client</p>
+                        <Link
+                            v-if="lead.client"
+                            :href="`/clients/${lead.client.id}`"
+                            class="mt-1 inline-block text-[0.9rem] font-medium text-primary-600 hover:underline"
+                        >
+                            {{ lead.client.name }}
+                        </Link>
+                        <Button
+                            v-else-if="can('company.create')"
+                            type="button"
+                            class="mt-2"
+                            size="sm"
+                            @click="router.post(`/leads/${lead.id}/client`)"
+                        >
+                            Convert to client
+                        </Button>
+                        <p v-else class="mt-1 text-[0.85rem] text-muted">
+                            This lead is won. A teammate who can add clients can convert them.
+                        </p>
                     </div>
 
                     <div>

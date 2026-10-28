@@ -17,7 +17,9 @@ use App\Models\Tenant;
 use App\Models\Tender;
 use App\Models\User;
 use Illuminate\Http\Client\Request;
+use Illuminate\Process\PendingProcess;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Process;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
@@ -78,8 +80,19 @@ it('sets up both profiles and a template for every stage from Settings → Servi
     expect(EmailTemplate::query()->count())->toBe(25);
 });
 
-it('lists strong matches and hides weak ones by default', function (): void {
-    $strong = tenderMatch();
+it('lists strong job posts and leaves government tenders off this page', function (): void {
+    $tender = tenderMatch();
+    $strong = OpportunityMatch::create([
+        'opportunity_type' => 'job_post',
+        'opportunity_id' => JobPost::query()->create([
+            'source' => 'remotive', 'external_id' => 's', 'title' => 'Laravel developer', 'company' => 'Northwind',
+            'url' => 'https://remotive.com/job/s', 'fingerprint' => 's',
+            'first_seen_at' => now(), 'last_seen_at' => now(),
+        ])->id,
+        'service_profile_id' => ServiceProfile::default()->id,
+        'fit_score' => 80, 'status' => 'new',
+        'fit_details' => ['services' => ['Web Development'], 'keywords' => [], 'reasons' => []],
+    ]);
     OpportunityMatch::create([
         'opportunity_type' => 'job_post',
         'opportunity_id' => JobPost::query()->create([
@@ -92,7 +105,40 @@ it('lists strong matches and hides weak ones by default', function (): void {
     $props = $this->actingAs($this->user)->get('/opportunities')->assertOk()->viewData('page')['props'];
 
     expect(array_column($props['matches']['data'], 'id'))->toBe([$strong->uuid])
-        ->and($props['matches']['data'][0]['reference'])->toBe('TS0000099999E');
+        ->and(array_column($props['sources'], 'value'))->not->toContain('tender')
+        ->and(collect($props['matches']['data'])->pluck('id'))->not->toContain($tender->uuid);
+});
+
+it('syncs only the job sources that were chosen', function (): void {
+    Process::fake();
+
+    $this->actingAs($this->user)
+        ->post('/opportunities/sync', ['sources' => ['remotive', 'tender']])
+        ->assertRedirect()
+        ->assertSessionHas('success');
+
+    Process::assertRan(function (PendingProcess $process): bool {
+        $command = implode(' ', (array) $process->command);
+
+        return str_contains($command, 'opportunities:fetch')
+            && str_contains($command, '--source=remotive')
+            && ! str_contains($command, 'tender');
+    });
+});
+
+it('saves the resume used for proposals', function (): void {
+    app(EnsureServiceProfiles::class)->handle();
+    $profile = ServiceProfile::query()->where('kind', 'freelancer')->first();
+
+    $this->actingAs($this->user)
+        ->patch('/opportunities/resume', [
+            'profile' => $profile->uuid,
+            'about' => 'Eleven years of Laravel and Vue, with the full resume pasted here.',
+        ])
+        ->assertRedirect()
+        ->assertSessionHas('success');
+
+    expect($profile->fresh()->about)->toBe('Eleven years of Laravel and Vue, with the full resume pasted here.');
 });
 
 it('drafts a tender letter from a template when no AI is configured', function (): void {
@@ -104,8 +150,23 @@ it('drafts a tender letter from a template when no AI is configured', function (
     expect($match->status)->toBe(OpportunityStatus::Drafted)
         ->and($match->drafted_by)->toBe('template')
         ->and($match->draft)->toContain('TS0000099999E')
+        ->and($match->draft)->toContain('EPADS')
         ->and($match->draft)->toContain('Berg Media Digital')
         ->and($match->draft)->toContain('Before bidding:');
+});
+
+it('drafts a UK tender letter for Find a Tender rather than EPADS', function (): void {
+    $match = tenderMatch([
+        'source' => 'find-a-tender',
+        'country' => 'United Kingdom',
+        'reference' => 'ocds-h6vhtk-1',
+        'organization' => 'Cabinet Office',
+    ]);
+
+    $this->actingAs($this->user)->post("/opportunities/{$match->uuid}/draft")->assertSessionHas('success');
+
+    expect($match->fresh()->draft)->toContain('Find a Tender')
+        ->and($match->fresh()->draft)->not->toContain('EPADS');
 });
 
 it('drafts with Claude, from the profile\'s facts, when it is configured', function (): void {
@@ -191,7 +252,19 @@ it('shows what is connected on the setup page', function (): void {
 });
 
 it('re-scores matches when a profile\'s services change', function (): void {
-    $match = tenderMatch();
+    app(EnsureServiceProfiles::class)->handle();
+    $match = OpportunityMatch::create([
+        'opportunity_type' => 'job_post',
+        'opportunity_id' => JobPost::query()->create([
+            'source' => 'remoteok', 'external_id' => 'web', 'title' => 'Web portal and software development',
+            'description' => 'web software development', 'url' => 'https://example.test/job', 'fingerprint' => 'web',
+            'first_seen_at' => now(), 'last_seen_at' => now(), 'posted_at' => now(),
+        ])->id,
+        'service_profile_id' => ServiceProfile::default()->id,
+        'fit_score' => 80,
+        'fit_details' => ['services' => ['Web Development'], 'keywords' => [], 'reasons' => []],
+        'status' => 'new',
+    ]);
     $profile = ServiceProfile::default();
 
     $this->actingAs($this->user)->put("/settings/services/{$profile->uuid}", [

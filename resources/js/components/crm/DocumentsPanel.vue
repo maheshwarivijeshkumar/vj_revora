@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useClock } from '@/composables/useClock';
 /**
  * Files attached to a record (§21, §44).
  *
@@ -43,6 +44,7 @@ export type DocumentConstraints = {
     accept: string;
 };
 
+const { timeZone } = useClock();
 const props = defineProps<{
     /** `lead`, `contact`, `company` or `deal` — the server's allowlist. */
     subjectType: string;
@@ -160,7 +162,7 @@ function formatDate(value: string | null): string {
         return '—';
     }
 
-    return new Date(value).toLocaleString(undefined, {
+    return new Date(value).toLocaleString(undefined, { timeZone: timeZone.value,
         day: 'numeric',
         month: 'short',
         year: 'numeric',

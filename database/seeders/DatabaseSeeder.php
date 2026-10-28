@@ -97,6 +97,25 @@ final class DatabaseSeeder extends Seeder
 
             $user->assignRole($owner);
 
+            foreach ([
+                ['email' => 'administrator@revora_berg.com', 'name' => 'Administrator'],
+                ['email' => 'admin@revora_berg.com', 'name' => 'Admin'],
+            ] as $account) {
+                $member = User::query()->where('email', $account['email'])->first() ?? new User;
+
+                $member->email = $account['email'];
+                $member->name = $account['name'];
+                $member->password = 'RevoraBergDemo2026!';
+                $member->email_verified_at ??= now();
+                $member->status = 'active';
+                $member->timezone = 'Asia/Karachi';
+                $member->save();
+
+                if (! $member->hasRole($owner)) {
+                    $member->assignRole($owner);
+                }
+            }
+
             $this->seedLeadDefaults();
 
             // Runs inside the tenant context, so the capture and create
@@ -105,6 +124,7 @@ final class DatabaseSeeder extends Seeder
         });
 
         $this->command->info('Demo workspace ready — owner@demo.test / password');
+        $this->command->info('Berg sign-in — administrator@revora_berg.com and admin@revora_berg.com');
     }
 
     /**

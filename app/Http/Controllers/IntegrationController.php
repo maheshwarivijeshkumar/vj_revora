@@ -7,6 +7,7 @@ namespace App\Http\Controllers;
 use App\Domain\Audit\AuditRecorder;
 use App\Domain\Audit\Enums\AuditAction;
 use App\Domain\Integrations\Actions\SyncLeadAdsConnection;
+use App\Domain\Integrations\ApplyWorkspaceCredentials;
 use App\Domain\Integrations\DataObjects\DiscoveredAccount;
 use App\Domain\Integrations\Enums\ConnectionStatus;
 use App\Domain\Integrations\Enums\LeadAdsPlatform;
@@ -15,12 +16,15 @@ use App\Domain\Integrations\Exceptions\ProviderRequestException;
 use App\Domain\Integrations\LeadAdsProviders;
 use App\Domain\Leads\Enums\LeadSourceType;
 use App\Jobs\SyncLeadAdsConnectionJob;
+use App\Models\IntegrationApp;
 use App\Models\IntegrationConnection;
 use App\Models\IntegrationSyncRun;
 use App\Models\LeadSource;
+use App\Models\WhatsAppAccount;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -80,7 +84,50 @@ final class IntegrationController extends Controller
                 ])
                 ->all(),
             'lookbackDays' => SyncLeadAdsConnection::INITIAL_LOOKBACK_DAYS,
+            'credentials' => $this->credentials(),
+            'whatsapp' => $this->whatsapp(),
         ]);
+    }
+
+    public function updateApp(Request $request, string $provider): RedirectResponse
+    {
+        $validated = $request->validate([
+            'enabled' => ['required', 'boolean'],
+            'client_id' => ['nullable', 'string', 'max:255'],
+            'client_secret' => ['nullable', 'string', 'max:2000'],
+            'api_key' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        $app = IntegrationApp::query()->firstOrNew(['provider' => $provider]);
+        $enabling = $request->boolean('enabled');
+
+        if ($enabling) {
+            $missing = $this->missingRequiredKeys($request, $app, $provider);
+
+            if ($missing !== []) {
+                throw ValidationException::withMessages($missing);
+            }
+        }
+
+        $app->enabled = $enabling;
+
+        if (array_key_exists('client_id', $validated)) {
+            $app->client_id = filled($validated['client_id']) ? $validated['client_id'] : null;
+        }
+
+        if (filled($validated['client_secret'] ?? null)) {
+            $app->client_secret = $validated['client_secret'];
+        }
+
+        if (filled($validated['api_key'] ?? null)) {
+            $app->api_key = $validated['api_key'];
+        }
+
+        $app->save();
+
+        app(ApplyWorkspaceCredentials::class)->apply();
+
+        return back()->with('success', $enabling ? 'Integration enabled.' : 'Integration disabled.');
     }
 
     public function connect(Request $request, LeadAdsPlatform $platform): RedirectResponse
@@ -88,7 +135,7 @@ final class IntegrationController extends Controller
         $provider = $this->providers->for($platform);
 
         if (! $provider->isConfigured()) {
-            return back()->with('error', "{$platform->label()} is not set up on this server yet. Add the app credentials to the environment first.");
+            return back()->with('error', "Add the {$platform->label()} app ID and secret on this page first.");
         }
 
         // Checked on the way back, so a callback cannot be forged into
@@ -200,6 +247,98 @@ final class IntegrationController extends Controller
         ])->save();
 
         return $connection;
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    private function credentials(): array
+    {
+        $saved = IntegrationApp::query()->get()->keyBy('provider');
+
+        return array_map(function (array $definition) use ($saved): array {
+            /** @var IntegrationApp|null $row */
+            $row = $saved->get($definition['provider']);
+
+            return [
+                ...$definition,
+                'enabled' => (bool) $row?->enabled,
+                'client_id' => $row->client_id ?? '',
+                'secret_set' => filled($row?->client_secret),
+                'api_key_set' => filled($row?->api_key),
+            ];
+        }, $this->credentialDefinitions());
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function missingRequiredKeys(Request $request, IntegrationApp $app, string $provider): array
+    {
+        $definition = collect($this->credentialDefinitions())->firstWhere('provider', $provider);
+
+        if (! is_array($definition)) {
+            return [];
+        }
+
+        $missing = [];
+
+        if ($definition['client_id_required'] && blank($request->input('client_id'))) {
+            $missing['client_id'] = 'Enter the '.strtolower((string) $definition['client_id_label']).' to enable this integration.';
+        }
+
+        if ($definition['secret_required'] && blank($request->input('client_secret')) && blank($app->client_secret)) {
+            $missing['client_secret'] = 'Enter the '.strtolower((string) $definition['secret_label']).' to enable this integration.';
+        }
+
+        if ($definition['api_key_required'] && blank($request->input('api_key')) && blank($app->api_key)) {
+            $missing['api_key'] = 'Enter the '.strtolower((string) $definition['api_key_label']).' to enable this integration.';
+        }
+
+        return $missing;
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    private function credentialDefinitions(): array
+    {
+        return [
+            ['provider' => 'meta', 'label' => 'Facebook & Instagram', 'client_id_label' => 'App ID', 'secret_label' => 'App secret', 'api_key_label' => null, 'client_id_required' => true, 'secret_required' => true, 'api_key_required' => false, 'callback_url' => $this->callbackUrl(LeadAdsPlatform::Meta), 'hint' => 'From the Meta app dashboard. Register the redirect URL under Facebook Login.'],
+            ['provider' => 'linkedin', 'label' => 'LinkedIn', 'client_id_label' => 'Client ID', 'secret_label' => 'Client secret', 'api_key_label' => null, 'client_id_required' => true, 'secret_required' => true, 'api_key_required' => false, 'callback_url' => $this->callbackUrl(LeadAdsPlatform::LinkedIn), 'hint' => 'From the LinkedIn app. Register the redirect URL under Auth.'],
+            ['provider' => 'whatsapp', 'label' => 'WhatsApp Cloud API', 'client_id_label' => null, 'secret_label' => 'App secret', 'api_key_label' => 'Verify token', 'client_id_required' => false, 'secret_required' => true, 'api_key_required' => true, 'callback_url' => route('webhooks.whatsapp'), 'hint' => 'The app secret signs incoming replies. Pick a verify token and enter the same value in the Meta app.'],
+            ['provider' => 'google', 'label' => 'Google', 'client_id_label' => 'Client ID', 'secret_label' => 'Client secret', 'api_key_label' => 'Places API key', 'client_id_required' => true, 'secret_required' => true, 'api_key_required' => false, 'callback_url' => route('settings.email.callback', 'google'), 'hint' => 'The client signs in Gmail. The Places key is only for finding businesses.'],
+            ['provider' => 'microsoft', 'label' => 'Microsoft', 'client_id_label' => 'Client ID', 'secret_label' => 'Client secret', 'api_key_label' => null, 'client_id_required' => true, 'secret_required' => true, 'api_key_required' => false, 'callback_url' => route('settings.email.callback', 'microsoft'), 'hint' => 'From the Azure app registration used for Outlook.'],
+            ['provider' => 'upwork', 'label' => 'Upwork', 'client_id_label' => 'Client ID', 'secret_label' => 'Client secret', 'api_key_label' => null, 'client_id_required' => true, 'secret_required' => true, 'api_key_required' => false, 'callback_url' => route('settings.upwork.callback'), 'hint' => 'Needs the Read marketplace Job Postings permission.'],
+        ];
+    }
+
+    /**
+     * @return array{account: array<string, mixed>|null, webhook: array{url: string, verify_token_set: bool, app_secret_set: bool}}
+     */
+    private function whatsapp(): array
+    {
+        $account = WhatsAppAccount::query()->first();
+
+        return [
+            'account' => $account === null ? null : [
+                'phone_number_id' => $account->phone_number_id,
+                'business_account_id' => $account->business_account_id,
+                'display_phone_number' => $account->display_phone_number,
+                'welcome_template' => $account->welcome_template,
+                'template_language' => $account->template_language,
+                'auto_send_welcome' => $account->auto_send_welcome,
+                'status' => $account->status->value,
+                'status_label' => $account->status->label(),
+                'status_tone' => $account->status->tone(),
+                'last_error' => $account->last_error,
+            ],
+            'webhook' => [
+                'url' => route('webhooks.whatsapp'),
+                'verify_token_set' => filled(config('services.whatsapp.verify_token')),
+                'app_secret_set' => filled(config('services.whatsapp.app_secret')),
+            ],
+        ];
     }
 
     private function callbackUrl(LeadAdsPlatform $platform): string

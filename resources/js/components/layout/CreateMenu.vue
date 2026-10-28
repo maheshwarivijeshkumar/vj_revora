@@ -88,7 +88,7 @@ onBeforeUnmount(() => {
         <Button
             variant="primary"
             size="sm"
-            class="hidden sm:inline-flex"
+            class="inline-flex"
             aria-haspopup="menu"
             :aria-expanded="open"
             @click="open = !open"

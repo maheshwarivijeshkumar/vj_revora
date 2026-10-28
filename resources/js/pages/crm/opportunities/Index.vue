@@ -4,6 +4,7 @@ import {
     Check,
     Copy,
     ExternalLink,
+    RefreshCw,
     Search,
     Sparkles,
     Target,
@@ -13,12 +14,15 @@ import {
 import { ref, watch } from 'vue';
 import DataTablePagination from '@/components/data/DataTablePagination.vue';
 import Button from '@/components/ui/Button.vue';
+import Checkbox from '@/components/ui/Checkbox.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
+import FormField from '@/components/ui/FormField.vue';
 import SelectMenu from '@/components/ui/SelectMenu.vue';
 import StatusBadge, { type Tone } from '@/components/ui/StatusBadge.vue';
 import TextArea from '@/components/ui/TextArea.vue';
 import TextInput from '@/components/ui/TextInput.vue';
 import { useAuthorization } from '@/composables/useAuthorization';
+import { useClock } from '@/composables/useClock';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { copyText } from '@/lib/clipboard';
 import { useToastStore } from '@/stores/toast';
@@ -72,6 +76,8 @@ const props = defineProps<{
     sources: Option[];
     statuses: Option[];
     profiles: Option[];
+    resumes: { id: string; name: string; kind: string; about: string }[];
+    canEditResume: boolean;
     counts: Record<string, number>;
     hasProfiles: boolean;
     highFit: number;
@@ -80,11 +86,17 @@ const props = defineProps<{
 
 const { can } = useAuthorization();
 const toasts = useToastStore();
+const { formatDate } = useClock();
 
 const search = ref(props.filters.search);
 const open = ref<string | null>(null);
 const drafts = ref<Record<string, string>>({});
 const busy = ref<string | null>(null);
+const syncing = ref(false);
+const syncSources = ref(props.sources.map((source) => source.value));
+const resumeId = ref(props.resumes[0]?.id ?? '');
+const resumeText = ref(props.resumes[0]?.about ?? '');
+const savingResume = ref(false);
 
 function navigate(params: Record<string, unknown>, resetPage = true): void {
     router.get(
@@ -165,9 +177,7 @@ function saveDraft(item: Opportunity): void {
 async function copyDraft(item: Opportunity): Promise<void> {
     if (await copyText(drafts.value[item.id] ?? '')) {
         toasts.success(
-            'Copied. Paste it on ' +
-                (item.type === 'tender' ? 'your letter' : item.source) +
-                '.',
+            'Copied. Paste it on ' + item.source + ' and apply there yourself.',
         );
     }
 }
@@ -180,18 +190,59 @@ function fitTone(fit: number): Tone {
     return fit >= 75 ? 'success' : fit >= props.highFit ? 'info' : 'neutral';
 }
 
-function formatDate(value: string | null): string {
+function postedOn(value: string | null): string {
     if (!value) {
         return '';
     }
 
-    const date =
-        value.length === 10 ? new Date(`${value}T00:00:00`) : new Date(value);
+    if (value.length === 10) {
+        const [year, month, day] = value.split('-').map(Number);
 
-    return date.toLocaleDateString(undefined, {
-        day: 'numeric',
-        month: 'short',
-    });
+        return new Date(year, month - 1, day).toLocaleDateString(undefined, {
+            day: 'numeric',
+            month: 'short',
+        });
+    }
+
+    return formatDate(value, { day: 'numeric', month: 'short' });
+}
+
+function toggleSyncSource(source: string, on: boolean): void {
+    syncSources.value = on
+        ? [...syncSources.value, source]
+        : syncSources.value.filter((value) => value !== source);
+}
+
+function syncNow(): void {
+    syncing.value = true;
+
+    router.post(
+        '/opportunities/sync',
+        { sources: syncSources.value },
+        {
+            preserveScroll: true,
+            onFinish: () => (syncing.value = false),
+        },
+    );
+}
+
+function chooseResume(id: string): void {
+    resumeId.value = id;
+    resumeText.value =
+        props.resumes.find((resume) => resume.id === id)?.about ?? '';
+}
+
+function saveResume(): void {
+    savingResume.value = true;
+
+    router.patch(
+        '/opportunities/resume',
+        { profile: resumeId.value, about: resumeText.value },
+        {
+            preserveScroll: true,
+            onFinish: () => (savingResume.value = false),
+        },
+    );
 }
 
 function daysLeft(value: string | null): string {
@@ -235,69 +286,168 @@ function daysLeft(value: string | null): string {
             </div>
 
             <p class="max-w-4xl text-[0.88rem] text-muted">
-                Pakistan government tenders, Upwork jobs and remote job-board
-                posts, scored against your services. Draft a proposal, review
-                it, then submit it yourself on Upwork, EPADS or by email:
-                nothing is sent automatically. Job posts are shown with a link
-                back to the board that published them.
+                Upwork, Remotive, Remote OK and Arbeitnow, scored against
+                your services. Draft a proposal from your resume, edit it,
+                then apply yourself on the site that posted the job. Nothing
+                is submitted for you.
             </p>
 
-            <div class="flex flex-wrap items-center gap-2">
-                <div class="relative w-full max-w-xs">
-                    <Search
-                        class="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted"
-                        aria-hidden="true"
-                    />
-                    <TextInput
-                        id="opp-search"
-                        v-model="search"
-                        class="pl-9"
-                        placeholder="Search title or company…"
-                        aria-label="Search opportunities"
-                    />
+            <div
+                v-if="resumes.length"
+                class="rounded-xl border border-border bg-surface p-4"
+            >
+                <div class="grid gap-4 lg:grid-cols-[16rem_1fr]">
+                    <div>
+                        <h2 class="text-[0.95rem] font-semibold text-strong">
+                            Resume
+                        </h2>
+                        <p class="mt-1 text-[0.82rem] text-muted">
+                            Proposals are written only from this text. Change
+                            it here before you draft.
+                        </p>
+                        <div v-if="resumes.length > 1" class="mt-3">
+                            <SelectMenu
+                                id="opp-resume"
+                                :model-value="resumeId"
+                                :options="
+                                    resumes.map((resume) => ({
+                                        value: resume.id,
+                                        label: resume.name,
+                                    }))
+                                "
+                                @update:model-value="chooseResume"
+                            />
+                        </div>
+                    </div>
+                    <div>
+                        <FormField
+                            id="opp-resume-text"
+                            label="About, experience and resume"
+                            hint="Paste the full resume. The next draft uses the saved text."
+                        >
+                            <TextArea
+                                id="opp-resume-text"
+                                v-model="resumeText"
+                                :rows="6"
+                                :disabled="!canEditResume"
+                            />
+                        </FormField>
+                        <div class="mt-2 flex justify-end">
+                            <Button
+                                v-if="canEditResume"
+                                type="button"
+                                variant="secondary"
+                                size="sm"
+                                :loading="savingResume"
+                                @click="saveResume"
+                            >
+                                Save resume
+                            </Button>
+                            <Link
+                                v-else
+                                href="/settings/services"
+                                class="text-[0.85rem] font-medium text-primary-600 hover:underline"
+                            >
+                                Edit profiles
+                            </Link>
+                        </div>
+                    </div>
                 </div>
-                <div class="w-44">
-                    <SelectMenu
-                        id="opp-source"
-                        :model-value="filters.source"
-                        :options="[
-                            { value: '', label: 'All sources' },
-                            ...sources,
-                        ]"
-                        @update:model-value="(v) => navigate({ source: v })"
-                    />
+            </div>
+
+            <div class="rounded-xl border border-border bg-surface p-4">
+                <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                    <FormField id="opp-search" label="Search">
+                        <div class="relative">
+                            <Search
+                                class="pointer-events-none absolute top-1/2 left-3 z-10 size-4 -translate-y-1/2 text-muted"
+                                aria-hidden="true"
+                            />
+                            <TextInput
+                                id="opp-search"
+                                v-model="search"
+                                class="!pl-9"
+                                placeholder="Title or company…"
+                            />
+                        </div>
+                    </FormField>
+                    <FormField id="opp-source" label="Source">
+                        <SelectMenu
+                            id="opp-source"
+                            :model-value="filters.source"
+                            :options="[
+                                { value: '', label: 'All sources' },
+                                ...sources,
+                            ]"
+                            @update:model-value="(v) => navigate({ source: v })"
+                        />
+                    </FormField>
+                    <FormField id="opp-fit" label="Fit">
+                        <SelectMenu
+                            id="opp-fit"
+                            :model-value="String(filters.min_fit)"
+                            :options="fitOptions"
+                            @update:model-value="(v) => navigate({ min_fit: v })"
+                        />
+                    </FormField>
+                    <FormField id="opp-status" label="Status">
+                        <SelectMenu
+                            id="opp-status"
+                            :model-value="filters.status"
+                            :options="statusOptions"
+                            @update:model-value="(v) => navigate({ status: v })"
+                        />
+                    </FormField>
                 </div>
-                <div class="w-44">
-                    <SelectMenu
-                        id="opp-fit"
-                        :model-value="String(filters.min_fit)"
-                        :options="fitOptions"
-                        @update:model-value="(v) => navigate({ min_fit: v })"
-                    />
+                <div
+                    class="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4"
+                >
+                    <div v-if="profiles.length > 1" class="w-56">
+                        <SelectMenu
+                            id="opp-profile"
+                            :model-value="filters.profile"
+                            :options="[
+                                { value: '', label: 'Both profiles' },
+                                ...profiles,
+                            ]"
+                            @update:model-value="(v) => navigate({ profile: v })"
+                        />
+                    </div>
+                    <p class="ml-auto text-[0.82rem] text-muted">
+                        {{ counts.job_post ?? 0 }} strong jobs to act on
+                    </p>
                 </div>
-                <div class="w-40">
-                    <SelectMenu
-                        id="opp-status"
-                        :model-value="filters.status"
-                        :options="statusOptions"
-                        @update:model-value="(v) => navigate({ status: v })"
-                    />
+                <div
+                    v-if="can('lead.update')"
+                    class="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4"
+                >
+                    <div class="flex flex-wrap gap-x-5 gap-y-2">
+                        <label
+                            v-for="source in sources"
+                            :key="source.value"
+                            class="flex items-center gap-2 text-[0.85rem] text-body"
+                        >
+                            <Checkbox
+                                :id="`sync-${source.value}`"
+                                :model-value="syncSources.includes(source.value)"
+                                @update:model-value="
+                                    toggleSyncSource(source.value, $event)
+                                "
+                            />
+                            {{ source.label }}
+                        </label>
+                    </div>
+                    <Button
+                        type="button"
+                        variant="secondary"
+                        :loading="syncing"
+                        :disabled="syncSources.length === 0"
+                        @click="syncNow"
+                    >
+                        <RefreshCw class="size-4" />
+                        Sync now
+                    </Button>
                 </div>
-                <div v-if="profiles.length > 1" class="w-52">
-                    <SelectMenu
-                        id="opp-profile"
-                        :model-value="filters.profile"
-                        :options="[
-                            { value: '', label: 'Both profiles' },
-                            ...profiles,
-                        ]"
-                        @update:model-value="(v) => navigate({ profile: v })"
-                    />
-                </div>
-                <p class="ml-auto text-[0.82rem] text-muted">
-                    {{ counts.tender ?? 0 }} strong tenders ·
-                    {{ counts.job_post ?? 0 }} strong jobs to act on
-                </p>
             </div>
 
             <div
@@ -306,7 +456,7 @@ function daysLeft(value: string | null): string {
             >
                 <EmptyState
                     title="Nothing matches these filters"
-                    description="Lower the fit filter, include other statuses, or wait for the next fetch: tenders and job boards update twice a day, Upwork every two hours."
+                    description="Lower the fit filter, include other statuses, or sync a source. You apply yourself on the site that posted the job."
                 >
                     <template #icon><Target class="size-5" /></template>
                 </EmptyState>
@@ -345,7 +495,7 @@ function daysLeft(value: string | null): string {
                                     >· {{ item.where }}</span
                                 >
                                 <span v-if="item.posted_at"
-                                    >· {{ formatDate(item.posted_at) }}</span
+                                    >· {{ postedOn(item.posted_at) }}</span
                                 >
                                 <span
                                     v-if="item.closing_at"
@@ -408,7 +558,7 @@ function daysLeft(value: string | null): string {
                                 class="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-surface-alt px-3 text-[0.85rem] font-medium text-strong hover:bg-surface-sunken"
                             >
                                 <ExternalLink class="size-4" />
-                                Open on {{ item.source }}
+                                Apply on {{ item.source }}
                             </a>
                             <Button
                                 v-if="can('lead.update')"
@@ -418,13 +568,7 @@ function daysLeft(value: string | null): string {
                                 @click="draft(item)"
                             >
                                 <Sparkles class="size-4" />
-                                {{
-                                    item.draft
-                                        ? 'Redraft'
-                                        : item.type === 'tender'
-                                          ? 'Draft letter'
-                                          : 'Draft proposal'
-                                }}
+                                {{ item.draft ? 'Redraft' : 'Draft proposal' }}
                             </Button>
                             <Button
                                 v-if="

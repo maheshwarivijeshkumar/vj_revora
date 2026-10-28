@@ -10,8 +10,6 @@ use App\Models\WhatsAppAccount;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
-use Inertia\Inertia;
-use Inertia\Response;
 
 /**
  * The workspace's WhatsApp Business number (§15).
@@ -23,29 +21,9 @@ use Inertia\Response;
  */
 final class WhatsAppController extends Controller
 {
-    public function index(): Response
+    public function index(): RedirectResponse
     {
-        $account = WhatsAppAccount::query()->first();
-
-        return Inertia::render('settings/WhatsApp', [
-            'account' => $account === null ? null : [
-                'phone_number_id' => $account->phone_number_id,
-                'business_account_id' => $account->business_account_id,
-                'display_phone_number' => $account->display_phone_number,
-                'welcome_template' => $account->welcome_template,
-                'template_language' => $account->template_language,
-                'auto_send_welcome' => $account->auto_send_welcome,
-                'status' => $account->status->value,
-                'status_label' => $account->status->label(),
-                'status_tone' => $account->status->tone(),
-                'last_error' => $account->last_error,
-            ],
-            'webhook' => [
-                'url' => route('webhooks.whatsapp'),
-                'verify_token_set' => filled(config('services.whatsapp.verify_token')),
-                'app_secret_set' => filled(config('services.whatsapp.app_secret')),
-            ],
-        ]);
+        return redirect()->route('integrations.index');
     }
 
     public function update(Request $request): RedirectResponse

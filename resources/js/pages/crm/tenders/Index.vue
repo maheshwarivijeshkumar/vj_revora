@@ -1,15 +1,27 @@
 <script setup lang="ts">
 import { Head, router } from '@inertiajs/vue3';
-import { ExternalLink, Landmark, Search } from 'lucide-vue-next';
-import { ref, watch } from 'vue';
+import { ExternalLink, Landmark, RefreshCw, Search } from 'lucide-vue-next';
+import { computed, ref, watch } from 'vue';
 import DataTablePagination from '@/components/data/DataTablePagination.vue';
+import Button from '@/components/ui/Button.vue';
+import Checkbox from '@/components/ui/Checkbox.vue';
 import EmptyState from '@/components/ui/EmptyState.vue';
+import FormField from '@/components/ui/FormField.vue';
+import SelectMenu from '@/components/ui/SelectMenu.vue';
 import StatusBadge, { type Tone } from '@/components/ui/StatusBadge.vue';
 import TextInput from '@/components/ui/TextInput.vue';
+import { useAuthorization } from '@/composables/useAuthorization';
+import { useClock } from '@/composables/useClock';
 import AppLayout from '@/layouts/AppLayout.vue';
 
 type Tender = {
     id: number;
+    source: string;
+    source_label: string;
+    country: string | null;
+    buyer_kind: string;
+    buyer_label: string;
+    buyer_tone: Tone;
     reference: string;
     title: string;
     buyer_reference: string | null;
@@ -45,18 +57,50 @@ const props = defineProps<{
     filters: {
         search: string;
         topic: string[];
+        topic_mode: string;
+        country: string;
+        buyer: string;
+        source: string;
         show: 'open' | 'all';
         sort: string;
         direction: 'asc' | 'desc';
+        sort_key: string;
         per_page: number;
     };
     topics: { value: string; label: string }[];
+    buyers: { value: string; label: string }[];
+    sorts: { value: string; label: string }[];
+    countries: { value: string; label: string; sources: string[] }[];
+    sources: { value: string; label: string }[];
     pageSizes: number[];
     lastFetchedAt: string | null;
+    schedule: string;
 }>();
 
+const { can } = useAuthorization();
+const { formatDateTime } = useClock();
 const search = ref(props.filters.search);
 const loading = ref(false);
+const syncing = ref(false);
+const syncSources = ref<string[]>([]);
+
+function portalsFor(country: string): string[] {
+    if (country === '') {
+        return props.sources.map((source) => source.value);
+    }
+
+    return (
+        props.countries.find((item) => item.value === country)?.sources ?? []
+    );
+}
+
+watch(
+    () => props.filters.country,
+    (country) => {
+        syncSources.value = portalsFor(country);
+    },
+    { immediate: true },
+);
 
 /** Table state lives in the URL, so a filtered view is linkable (§111). */
 function navigate(params: Record<string, unknown>, resetPage = true): void {
@@ -66,7 +110,10 @@ function navigate(params: Record<string, unknown>, resetPage = true): void {
         '/tenders',
         {
             search: props.filters.search,
-            topic: props.filters.topic,
+            topic: props.filters.topic_mode === 'all' ? 'all' : props.filters.topic,
+            country: props.filters.country,
+            buyer: props.filters.buyer,
+            source: props.filters.source,
             show: props.filters.show,
             sort: props.filters.sort,
             direction: props.filters.direction,
@@ -83,20 +130,88 @@ function navigate(params: Record<string, unknown>, resetPage = true): void {
     );
 }
 
+const countryOptions = computed(() => [
+    { value: '', label: 'All countries' },
+    ...props.countries.map((country) => ({
+        value: country.value,
+        label: country.label,
+    })),
+]);
+
+const buyerOptions = computed(() => [
+    { value: '', label: 'All buyer types' },
+    ...props.buyers,
+]);
+
+const specializationOptions = computed(() => [
+    { value: 'focused', label: 'Web, software and IT' },
+    ...props.topics,
+    { value: 'all', label: 'All specializations' },
+]);
+
+const portalOptions = computed(() => [
+    { value: '', label: 'All portals' },
+    ...props.sources.filter((source) =>
+        portalsFor(props.filters.country).includes(source.value),
+    ),
+]);
+
+function setCountry(country: string): void {
+    const portals = portalsFor(country);
+    const source = portals.includes(props.filters.source)
+        ? props.filters.source
+        : '';
+
+    navigate({ country, source });
+}
+
+function setSpecialization(mode: string): void {
+    if (mode === 'all') {
+        navigate({ topic: 'all' });
+
+        return;
+    }
+
+    if (mode === 'focused') {
+        navigate({ topic: ['web', 'software', 'it'] });
+
+        return;
+    }
+
+    navigate({ topic: [mode] });
+}
+
+function setSort(value: string): void {
+    const [sort, direction] = value.split(':');
+
+    navigate({ sort, direction });
+}
+
+function toggleSyncSource(source: string, on: boolean): void {
+    syncSources.value = on
+        ? [...syncSources.value, source]
+        : syncSources.value.filter((value) => value !== source);
+}
+
+function syncNow(): void {
+    syncing.value = true;
+
+    router.post(
+        '/tenders/sync',
+        { sources: syncSources.value },
+        {
+            preserveScroll: true,
+            onFinish: () => (syncing.value = false),
+        },
+    );
+}
+
 let searchTimer: ReturnType<typeof setTimeout> | undefined;
 
 watch(search, (value) => {
     clearTimeout(searchTimer);
     searchTimer = setTimeout(() => navigate({ search: value }), 300);
 });
-
-function toggleTopic(topic: string): void {
-    const topics = props.filters.topic.includes(topic)
-        ? props.filters.topic.filter((t) => t !== topic)
-        : [...props.filters.topic, topic];
-
-    navigate({ topic: topics });
-}
 
 function sortBy(column: string): void {
     const direction =
@@ -127,7 +242,7 @@ function formatDeadline(value: string | null): string {
         return '—';
     }
 
-    return new Date(value).toLocaleString(undefined, {
+    return formatDateTime(value, {
         day: 'numeric',
         month: 'short',
         year: 'numeric',
@@ -166,66 +281,136 @@ function daysLeft(tender: Tender): { label: string; tone: Tone } {
     <AppLayout title="Tenders" :breadcrumbs="[{ label: 'Tenders' }]">
         <div class="space-y-3">
             <p class="max-w-3xl text-[0.88rem] text-muted">
-                Government of Pakistan tenders from PPRA, fetched twice a day (8
-                AM and 4 PM Pakistan time).
+                Public, semi-government, private and private-industry notices.
+                Automatic sync runs at {{ schedule }}.
                 <template v-if="lastFetchedAt">
                     Last updated {{ formatDeadline(lastFetchedAt) }}.
                 </template>
             </p>
 
-            <div class="flex flex-wrap items-center gap-2">
-                <div class="relative w-full max-w-sm">
-                    <Search
-                        class="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted"
-                        aria-hidden="true"
-                    />
-                    <TextInput
-                        id="tender-search"
-                        v-model="search"
-                        type="text"
-                        class="pl-9"
-                        placeholder="Search title, tender no, organization, city…"
-                        aria-label="Search tenders"
-                    />
+            <div class="rounded-xl border border-border bg-surface p-4">
+                <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                    <FormField id="tender-search" label="Search">
+                        <div class="relative">
+                            <Search
+                                class="pointer-events-none absolute top-1/2 left-3 z-10 size-4 -translate-y-1/2 text-muted"
+                                aria-hidden="true"
+                            />
+                            <TextInput
+                                id="tender-search"
+                                v-model="search"
+                                type="text"
+                                class="!pl-9"
+                                placeholder="Title, tender no, organization, city…"
+                            />
+                        </div>
+                    </FormField>
+
+                    <FormField id="tender-country" label="Country">
+                        <SelectMenu
+                            id="tender-country"
+                            :model-value="filters.country"
+                            :options="countryOptions"
+                            :search-threshold="0"
+                            search-placeholder="Search countries"
+                            @update:model-value="setCountry"
+                        />
+                    </FormField>
+
+                    <FormField id="tender-buyer" label="Buyer type">
+                        <SelectMenu
+                            id="tender-buyer"
+                            :model-value="filters.buyer"
+                            :options="buyerOptions"
+                            @update:model-value="
+                                (value) => navigate({ buyer: value })
+                            "
+                        />
+                    </FormField>
+
+                    <FormField id="tender-specialization" label="Specialization">
+                        <SelectMenu
+                            id="tender-specialization"
+                            :model-value="filters.topic_mode"
+                            :options="specializationOptions"
+                            @update:model-value="setSpecialization"
+                        />
+                    </FormField>
+
+                    <FormField id="tender-portal" label="Portal">
+                        <SelectMenu
+                            id="tender-portal"
+                            :model-value="filters.source"
+                            :options="portalOptions"
+                            @update:model-value="
+                                (value) => navigate({ source: value })
+                            "
+                        />
+                    </FormField>
+
+                    <FormField id="tender-sort" label="Sort">
+                        <SelectMenu
+                            id="tender-sort"
+                            :model-value="filters.sort_key"
+                            :options="sorts"
+                            @update:model-value="setSort"
+                        />
+                    </FormField>
                 </div>
 
                 <div
-                    class="flex flex-wrap gap-1.5"
-                    role="group"
-                    aria-label="Tender type"
+                    class="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4"
                 >
-                    <button
-                        v-for="topic in topics"
-                        :key="topic.value"
-                        type="button"
-                        class="rounded-full border px-3 py-1 text-[0.82rem] font-medium transition-colors"
-                        :class="
-                            filters.topic.includes(topic.value)
-                                ? 'border-primary-600 bg-primary-600 text-white'
-                                : 'border-border bg-surface text-body hover:bg-surface-alt'
-                        "
-                        :aria-pressed="filters.topic.includes(topic.value)"
-                        @click="toggleTopic(topic.value)"
-                    >
-                        {{ topic.label }}
-                    </button>
+                    <label class="flex items-center gap-2 text-[0.85rem] text-body">
+                        <input
+                            type="checkbox"
+                            class="size-4 rounded border-border"
+                            :checked="filters.show === 'all'"
+                            @change="
+                                navigate({
+                                    show: filters.show === 'all' ? 'open' : 'all',
+                                })
+                            "
+                        />
+                        Include closed
+                    </label>
+                    <p class="text-[0.82rem] text-muted">
+                        {{ tenders.total }}
+                        {{ tenders.total === 1 ? 'notice' : 'notices' }}
+                    </p>
                 </div>
 
-                <label
-                    class="ml-auto flex items-center gap-2 text-[0.85rem] text-body"
+                <div
+                    v-if="can('lead.update')"
+                    class="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4"
                 >
-                    <input
-                        type="checkbox"
-                        class="size-4 rounded border-border"
-                        :checked="filters.show === 'all'"
-                        @change="
-                            navigate({
-                                show: filters.show === 'all' ? 'open' : 'all',
-                            })
-                        "
-                    />
-                    Include closed
-                </label>
+                    <div class="flex flex-wrap gap-x-5 gap-y-2">
+                        <label
+                            v-for="source in sources"
+                            :key="source.value"
+                            class="flex items-center gap-2 text-[0.85rem] text-body"
+                        >
+                            <Checkbox
+                                :id="`sync-${source.value}`"
+                                :model-value="syncSources.includes(source.value)"
+                                @update:model-value="
+                                    toggleSyncSource(source.value, $event)
+                                "
+                            />
+                            {{ source.label }}
+                        </label>
+                    </div>
+                    <Button
+                        type="button"
+                        variant="secondary"
+                        :loading="syncing"
+                        :disabled="syncSources.length === 0"
+                        @click="syncNow"
+                    >
+                        <RefreshCw class="size-4" />
+                        Sync now
+                    </Button>
+                </div>
             </div>
 
             <div
@@ -235,7 +420,7 @@ function daysLeft(tender: Tender): { label: string; tone: Tone } {
                 <EmptyState
                     v-if="tenders.data.length === 0"
                     title="No tenders match"
-                    description="Try another search, include more types, or include closed tenders. New tenders arrive twice a day."
+                    description="Try another country, buyer type or specialization, or include closed notices."
                 >
                     <template #icon>
                         <Landmark class="size-5" />
@@ -273,7 +458,7 @@ function daysLeft(tender: Tender): { label: string; tone: Tone } {
                                     </button>
                                 </th>
                                 <th class="px-4 py-2.5">
-                                    <span class="sr-only">Open on PPRA</span>
+                                    <span class="sr-only">Open the notice</span>
                                 </th>
                             </tr>
                         </thead>
@@ -287,6 +472,10 @@ function daysLeft(tender: Tender): { label: string; tone: Tone } {
                                     <div
                                         class="flex flex-wrap items-center gap-1.5"
                                     >
+                                        <StatusBadge
+                                            :tone="tender.buyer_tone"
+                                            :label="tender.buyer_label"
+                                        />
                                         <StatusBadge
                                             :tone="tender.topic_tone"
                                             :label="tender.topic_label"
@@ -339,10 +528,17 @@ function daysLeft(tender: Tender): { label: string; tone: Tone } {
                                         {{ tender.organization }}
                                     </p>
                                     <p
-                                        v-if="tender.city"
+                                        v-if="tender.city || tender.country"
                                         class="text-[0.78rem] text-muted"
                                     >
-                                        {{ tender.city }}
+                                        {{
+                                            [tender.city, tender.country]
+                                                .filter(Boolean)
+                                                .join(', ')
+                                        }}
+                                    </p>
+                                    <p class="text-[0.78rem] text-muted">
+                                        {{ tender.source_label }}
                                     </p>
                                 </td>
                                 <td
@@ -373,7 +569,8 @@ function daysLeft(tender: Tender): { label: string; tone: Tone } {
                                             aria-hidden="true"
                                         />
                                         <span class="sr-only"
-                                            >{{ tender.reference }} on PPRA
+                                            >{{ tender.reference }} on
+                                            {{ tender.source_label }}
                                             (opens in a new tab)</span
                                         >
                                     </a>

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Integrations\Providers;
 
+use App\Domain\Campaigns\DataObjects\RemoteCampaign;
 use App\Domain\Integrations\Contracts\LeadAdsProvider;
 use App\Domain\Integrations\DataObjects\DiscoveredAccount;
 use App\Domain\Integrations\DataObjects\ProviderLead;
@@ -217,6 +218,63 @@ final class LinkedInLeadSyncProvider implements LeadAdsProvider
                 'lead_ads_creative_id' => $element['associatedEntity']['associatedCreative'] ?? null,
             ]),
         );
+    }
+
+    /**
+     * Campaigns on this sponsored ad account.
+     *
+     * A token that can read lead forms sometimes cannot list campaigns. That
+     * leaves the campaigns already named on leads in place.
+     *
+     * @return iterable<RemoteCampaign>
+     */
+    public function fetchCampaigns(IntegrationConnection $connection): iterable
+    {
+        $id = substr($connection->account_id, (int) strrpos($connection->account_id, ':') + 1);
+        $start = 0;
+
+        try {
+            do {
+                $body = $this->decode($this->send(
+                    fn (): Response => $this->api($connection->access_token)->get(
+                        "https://api.linkedin.com/rest/adAccounts/{$id}/adCampaigns",
+                        ['q' => 'search', 'count' => self::PAGE_SIZE, 'start' => $start],
+                    ),
+                ));
+
+                $elements = (array) ($body['elements'] ?? []);
+
+                foreach ($elements as $campaign) {
+                    if (! is_array($campaign)) {
+                        continue;
+                    }
+
+                    $campaignId = (string) ($campaign['id'] ?? '');
+                    $name = trim((string) ($campaign['name'] ?? ''));
+
+                    if ($campaignId === '' || $name === '') {
+                        continue;
+                    }
+
+                    $schedule = (array) ($campaign['runSchedule'] ?? []);
+
+                    yield new RemoteCampaign(
+                        platform: 'linkedin',
+                        externalId: $campaignId,
+                        name: $name,
+                        status: isset($campaign['status']) ? (string) $campaign['status'] : null,
+                        objective: isset($campaign['objectiveType']) ? (string) $campaign['objectiveType'] : null,
+                        startsAt: isset($schedule['start']) ? Carbon::createFromTimestampMs((int) $schedule['start']) : null,
+                        endsAt: isset($schedule['end']) ? Carbon::createFromTimestampMs((int) $schedule['end']) : null,
+                    );
+                }
+
+                $start += self::PAGE_SIZE;
+                $total = (int) ($body['paging']['total'] ?? count($elements));
+            } while ($elements !== [] && $start < $total && ($start / self::PAGE_SIZE) < self::MAX_PAGES);
+        } catch (ProviderAuthException|ProviderRequestException) {
+            return;
+        }
     }
 
     /**

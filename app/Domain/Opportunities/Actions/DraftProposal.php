@@ -6,6 +6,7 @@ namespace App\Domain\Opportunities\Actions;
 
 use App\Domain\Ai\Writer;
 use App\Domain\Opportunities\Enums\OpportunityStatus;
+use App\Domain\Tenders\TenderPortal;
 use App\Models\JobPost;
 use App\Models\OpportunityMatch;
 use App\Models\ServiceProfile;
@@ -21,7 +22,7 @@ use RuntimeException;
  *   government tender an expression-of-interest letter, plus a bid checklist
  *
  * The draft is never sent from here. Upwork forbids automated proposals, and
- * a tender is bid on EPADS; a person reads, edits and submits it (§89).
+ * a tender is bid on the portal that published it; a person reads, edits and submits it (§89).
  */
 final readonly class DraftProposal
 {
@@ -89,7 +90,10 @@ final readonly class DraftProposal
             : 'Write as the freelancer in the first person, using "I".';
 
         if ($opportunity instanceof Tender) {
-            return $voice.' TASK: a formal expression-of-interest letter to the procuring organisation for this Government of Pakistan tender, 200-300 words. Quote the tender number and title, say which of the profile\'s services and past work match the scope, and say the bidding documents will be obtained through EPADS. After the letter, add a line "Before bidding:" with a short checklist of what the tender likely requires (e.g. FBR active-taxpayer status, NTN/STN, registration, past-experience evidence, bid security) phrased as things to confirm, not as claims.';
+            $portal = TenderPortal::label($opportunity->source);
+            $via = TenderPortal::submitVia($opportunity->source);
+
+            return $voice.' TASK: a formal expression-of-interest letter to the procuring organisation for this '.$portal.' notice, 200-300 words. Quote the tender number and title, say which of the profile\'s services and past work match the scope, and say the bidding documents will be obtained through '.$via.'. After the letter, add a line "Before bidding:" with a short checklist phrased as things to confirm, not as claims. The checklist for this portal is: '.TenderPortal::checklist($opportunity->source);
         }
 
         if ($opportunity->source === 'upwork') {
@@ -121,15 +125,19 @@ final readonly class DraftProposal
     private function opportunityFacts(Tender|JobPost $opportunity): string
     {
         if ($opportunity instanceof Tender) {
+            $timezone = TenderPortal::timezone($opportunity->source);
+            $zoneLabel = $opportunity->source === 'ppra' ? 'PKT' : 'UK';
+
             return implode("\n", array_filter([
-                'Government of Pakistan tender (PPRA)',
+                TenderPortal::label($opportunity->source).' notice',
+                'Country: '.($opportunity->country ?? TenderPortal::country($opportunity->source)),
                 'Tender number: '.$opportunity->reference,
                 $opportunity->buyer_reference ? 'Buyer reference: '.$opportunity->buyer_reference : null,
                 'Title: '.$opportunity->title,
                 'Organisation: '.trim(($opportunity->department ?? '').', '.($opportunity->organization ?? ''), ', '),
                 $opportunity->city ? 'City: '.$opportunity->city : null,
                 'Category: '.$opportunity->procurement_category.' · '.$opportunity->tender_type,
-                $opportunity->closing_at ? 'Closing: '.$opportunity->closing_at->setTimezone('Asia/Karachi')->format('j M Y, g:i A').' PKT' : null,
+                $opportunity->closing_at ? 'Closing: '.$opportunity->closing_at->setTimezone($timezone)->format('j M Y, g:i A').' '.$zoneLabel : null,
                 $opportunity->description ? 'Details: '.$opportunity->description : null,
             ]));
         }
@@ -160,13 +168,15 @@ final readonly class DraftProposal
         $proofLine = $proof ? ucfirst($our).' recent work includes '.$proof['name'].': '.($proof['summary'] ?? '') : '';
 
         if ($opportunity instanceof Tender) {
+            $via = TenderPortal::submitVia($opportunity->source);
+
             return "Subject: Expression of interest: {$opportunity->reference}, {$opportunity->title}\n\n"
                 ."To the Procurement Committee,\n\n"
                 ."{$profile->name} would like to express interest in tender {$opportunity->reference}, \"{$opportunity->title}\". "
                 .ucfirst($we)." deliver {$service} and related services, and {$proofLine}\n\n"
-                .ucfirst($we)." will obtain the bidding documents through EPADS and submit a complete bid before the closing date.\n\n"
+                .ucfirst($we)." will obtain the bidding documents through {$via} and submit a complete bid before the closing date.\n\n"
                 ."{$profile->signature}\n\n"
-                .'Before bidding: confirm FBR active-taxpayer status, NTN/STN, PPRA/EPADS registration, required past-experience evidence and bid security.';
+                .'Before bidding: '.TenderPortal::checklist($opportunity->source);
         }
 
         $opening = $opportunity->source === 'upwork'

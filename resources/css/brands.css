@@ -85,21 +85,21 @@
     --brand-gradient: linear-gradient(135deg, #2563eb, #06b6d4);
 }
 
-/* --- Revora — emerald + blue, revenue growth --------------------------- */
+/* --- Revora — glacier teal from the mark, blue only on the arrow -------- */
 [data-brand='revora'] {
-    --brand-50: #ecfdf5;
-    --brand-100: #d1fae5;
-    --brand-200: #a7f3d0;
-    --brand-300: #6ee7b7;
-    --brand-400: #34d399;
-    --brand-500: #10b981;
-    --brand-600: #059669;
-    --brand-700: #047857;
-    --brand-800: #065f46;
-    --brand-900: #064e3b;
-    --brand-secondary-hex: #10b981;
+    --brand-50: #f0fdfa;
+    --brand-100: #ccfbf1;
+    --brand-200: #99f6e4;
+    --brand-300: #5eead4;
+    --brand-400: #2dd4bf;
+    --brand-500: #14b8a6;
+    --brand-600: #0f9f94;
+    --brand-700: #0c857c;
+    --brand-800: #115e59;
+    --brand-900: #134e4a;
+    --brand-secondary-hex: #14b8a6;
     --brand-accent-hex: #2563eb;
-    --brand-gradient: linear-gradient(135deg, #059669, #2563eb);
+    --brand-gradient: linear-gradient(135deg, #0f9f94, #2563eb);
 }
 
 /* --- LeadForge — orange + red, transformation -------------------------- */
@@ -183,17 +183,17 @@
  * instance on an error page rendered before the app booted.
  */
 :root:not([data-brand]) {
-    --brand-50: #ecfdf5;
-    --brand-100: #d1fae5;
-    --brand-200: #a7f3d0;
-    --brand-300: #6ee7b7;
-    --brand-400: #34d399;
-    --brand-500: #10b981;
-    --brand-600: #059669;
-    --brand-700: #047857;
-    --brand-800: #065f46;
-    --brand-900: #064e3b;
-    --brand-secondary-hex: #10b981;
+    --brand-50: #f0fdfa;
+    --brand-100: #ccfbf1;
+    --brand-200: #99f6e4;
+    --brand-300: #5eead4;
+    --brand-400: #2dd4bf;
+    --brand-500: #14b8a6;
+    --brand-600: #0f9f94;
+    --brand-700: #0c857c;
+    --brand-800: #115e59;
+    --brand-900: #134e4a;
+    --brand-secondary-hex: #14b8a6;
     --brand-accent-hex: #2563eb;
-    --brand-gradient: linear-gradient(135deg, #059669, #2563eb);
+    --brand-gradient: linear-gradient(135deg, #0f9f94, #2563eb);
 }

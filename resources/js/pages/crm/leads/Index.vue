@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useClock } from '@/composables/useClock';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import {
     ArrowRightLeft,
@@ -32,6 +33,7 @@ import AppLayout from '@/layouts/AppLayout.vue';
 import { useAuthorization } from '@/composables/useAuthorization';
 import { useToastStore } from '@/stores/toast';
 
+const { timeZone } = useClock();
 type LeadRow = {
     id: number;
     uuid: string;
@@ -354,7 +356,7 @@ function formatDate(value: string | null): string {
         return '—';
     }
 
-    return new Date(value).toLocaleDateString(undefined, {
+    return new Date(value).toLocaleDateString(undefined, { timeZone: timeZone.value,
         day: 'numeric',
         month: 'short',
         year: 'numeric',

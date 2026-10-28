@@ -43,6 +43,7 @@ class UserFactory extends Factory
             'timezone' => 'UTC',
             'locale' => 'en',
             'status' => 'active',
+            'presence' => 'active',
             'last_login_at' => null,
         ];
     }

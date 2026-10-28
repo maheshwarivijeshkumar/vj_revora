@@ -30,7 +30,9 @@ final class LoginRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'email' => ['required', 'string', 'email', 'max:255'],
+            // Same shape as the sign-in field in the browser. An underscore
+            // in the domain is a real address on this workspace.
+            'email' => ['required', 'string', 'max:255', 'regex:/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/'],
             'password' => ['required', 'string'],
             'remember' => ['boolean'],
         ];
@@ -43,7 +45,7 @@ final class LoginRequest extends FormRequest
     {
         return [
             'email.required' => 'Email address is required.',
-            'email.email' => 'Please enter a valid email address.',
+            'email.regex' => 'Please enter a valid email address.',
             'password.required' => 'Password is required.',
         ];
     }

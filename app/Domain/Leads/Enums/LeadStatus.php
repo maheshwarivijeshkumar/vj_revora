@@ -62,6 +62,26 @@ enum LeadStatus: string
     }
 
     /**
+     * Qualified or further: the lead has been approved to work, including one
+     * already won. New, contacted, nurturing, lost and archived are not.
+     */
+    public function isApproved(): bool
+    {
+        return in_array($this, [self::Qualified, self::Appointment, self::Proposal, self::Won], true);
+    }
+
+    /**
+     * @return list<self>
+     */
+    public static function approved(): array
+    {
+        return array_values(array_filter(
+            self::cases(),
+            fn (self $status): bool => $status->isApproved(),
+        ));
+    }
+
+    /**
      * Funnel position, for conversion reporting. Terminal states sit outside
      * the ordering because they are outcomes, not stages.
      */

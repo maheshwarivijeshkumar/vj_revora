@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Integrations\Contracts;
 
+use App\Domain\Campaigns\DataObjects\RemoteCampaign;
 use App\Domain\Integrations\DataObjects\DiscoveredAccount;
 use App\Domain\Integrations\DataObjects\ProviderLead;
 use App\Domain\Integrations\Enums\LeadAdsPlatform;
@@ -47,4 +48,14 @@ interface LeadAdsProvider
      * @throws ProviderRequestException for anything a later retry may fix.
      */
     public function fetchLeads(IntegrationConnection $connection, CarbonInterface $since): iterable;
+
+    /**
+     * Campaigns on the connected ad account.
+     *
+     * Returns nothing when this token can read leads but not campaigns. That
+     * is not a failed connection.
+     *
+     * @return iterable<RemoteCampaign>
+     */
+    public function fetchCampaigns(IntegrationConnection $connection): iterable;
 }

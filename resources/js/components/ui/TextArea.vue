@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { useFieldDescription } from '@/composables/useFieldDescription';
 import { cn } from '@/lib/utils';
 
 const props = withDefaults(
@@ -18,10 +18,7 @@ const props = withDefaults(
 
 defineEmits<{ 'update:modelValue': [value: string]; blur: [] }>();
 
-const describedBy = computed(() => {
-    const ids = [props.hint ? `${props.id}-hint` : null, props.invalid ? `${props.id}-error` : null];
-    return ids.filter(Boolean).join(' ') || undefined;
-});
+const describedBy = useFieldDescription(props);
 </script>
 
 <template>

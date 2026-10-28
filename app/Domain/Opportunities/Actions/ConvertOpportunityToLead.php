@@ -49,7 +49,7 @@ final readonly class ConvertOpportunityToLead
                 externalRecordId: $match->uuid,
                 metadata: array_filter([
                     'opportunity_title' => $opportunity?->title,
-                    'opportunity_source' => $opportunity instanceof JobPost ? $opportunity->sourceLabel() : 'PPRA tender',
+                    'opportunity_source' => $opportunity?->sourceLabel(),
                     'opportunity_reference' => $opportunity instanceof Tender ? $opportunity->reference : null,
                     'opportunity_fit' => $match->fit_score,
                     'service_profile' => $match->profile?->name,

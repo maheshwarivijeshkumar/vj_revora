@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Database\Factories;
 
+use App\Domain\Tenders\Enums\TenderBuyerKind;
 use App\Domain\Tenders\Enums\TenderTopic;
 use App\Models\Tender;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -26,6 +27,8 @@ final class TenderFactory extends Factory
 
         return [
             'source' => 'ppra',
+            'country' => 'Pakistan',
+            'buyer_kind' => TenderBuyerKind::Public,
             'reference' => $reference,
             'title' => 'Development of '.fake()->words(3, true).' software',
             'organization' => 'Ministry of '.fake()->word(),

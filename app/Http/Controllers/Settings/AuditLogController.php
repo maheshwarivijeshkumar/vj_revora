@@ -24,7 +24,7 @@ use Inertia\Response;
  */
 final class AuditLogController extends Controller
 {
-    private const PER_PAGE = 50;
+    private const PER_PAGE = 25;
 
     public function __construct(
         private readonly TenantContext $context,
@@ -82,6 +82,8 @@ final class AuditLogController extends Controller
                     'current_page' => $logs->currentPage(),
                     'last_page' => $logs->lastPage(),
                     'per_page' => $logs->perPage(),
+                    'from' => $logs->firstItem(),
+                    'to' => $logs->lastItem(),
                     'total' => $logs->total(),
                 ],
             ],

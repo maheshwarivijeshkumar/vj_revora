@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useClock } from '@/composables/useClock';
 import { Head, router, useForm } from '@inertiajs/vue3';
 import {
     Mail,
@@ -17,6 +18,7 @@ import TextInput from '@/components/ui/TextInput.vue';
 import { useAuthorization } from '@/composables/useAuthorization';
 import AppLayout from '@/layouts/AppLayout.vue';
 
+const { timeZone } = useClock();
 type Account = {
     id: string;
     email: string;
@@ -123,7 +125,7 @@ function remove(account: Account): void {
 
 function formatDate(value: string | null): string {
     return value
-        ? new Date(value).toLocaleString(undefined, {
+        ? new Date(value).toLocaleString(undefined, { timeZone: timeZone.value,
               day: 'numeric',
               month: 'short',
               hour: '2-digit',

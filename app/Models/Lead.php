@@ -22,6 +22,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
@@ -194,6 +195,12 @@ final class Lead extends Model
     public function mergedInto(): BelongsTo
     {
         return $this->belongsTo(self::class, 'merged_into_id');
+    }
+
+    /** @return HasOne<Client, $this> */
+    public function client(): HasOne
+    {
+        return $this->hasOne(Client::class);
     }
 
     /** @return HasMany<LeadEvent, $this> */

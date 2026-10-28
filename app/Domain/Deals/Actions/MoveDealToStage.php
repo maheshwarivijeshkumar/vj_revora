@@ -7,8 +7,12 @@ namespace App\Domain\Deals\Actions;
 use App\Domain\Deals\Enums\DealStatus;
 use App\Domain\Deals\Events\DealStageChanged;
 use App\Domain\Deals\Exceptions\StageTransitionException;
+use App\Domain\Leads\Enums\LeadStatus;
+use App\Domain\Notifications\Actions\NotifyPermittedUsers;
+use App\Domain\Operations\Actions\ConvertLeadToClient;
 use App\Models\Deal;
 use App\Models\DealStageChange;
+use App\Models\Lead;
 use App\Models\PipelineStage;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\DB;
@@ -71,6 +75,22 @@ final class MoveDealToStage
                 $this->renumber($fromStage);
             }
 
+            if ($isStageChange && $stage->is_won) {
+                $this->convertWonLead($deal);
+            }
+
+            if ($isStageChange && ($stage->is_lost || ($stage->is_won && $deal->lead_id === null))) {
+                $outcome = $stage->is_won ? 'won' : 'lost';
+
+                app(NotifyPermittedUsers::class)->handle(
+                    'deal.view',
+                    'Deal marked '.$outcome,
+                    $deal->title.' was marked '.$outcome.'.',
+                    '/deals/'.$deal->id,
+                    $changedBy,
+                );
+            }
+
             if ($isStageChange) {
                 DealStageChange::create([
                     'deal_id' => $deal->id,
@@ -115,6 +135,35 @@ final class MoveDealToStage
         if ($missing !== []) {
             throw StageTransitionException::missingRequiredFields($stage->name, $missing);
         }
+    }
+
+    /**
+     * A won deal means the lead succeeded, so they become a client.
+     *
+     * Changing the lead's status to won runs the same conversion the lead
+     * form uses. A lead that was already won is converted directly, which
+     * still returns the existing client when one is already on file.
+     */
+    private function convertWonLead(Deal $deal): void
+    {
+        if ($deal->lead_id === null) {
+            return;
+        }
+
+        $lead = Lead::query()->find($deal->lead_id);
+
+        if (! $lead instanceof Lead || $lead->isMerged()) {
+            return;
+        }
+
+        if ($lead->status !== LeadStatus::Won) {
+            $lead->status = LeadStatus::Won;
+            $lead->save();
+
+            return;
+        }
+
+        app(ConvertLeadToClient::class)->handle($lead);
     }
 
     /** Terminal stages close the deal; moving back out reopens it. */

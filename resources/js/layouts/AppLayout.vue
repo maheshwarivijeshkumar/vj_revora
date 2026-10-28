@@ -2,6 +2,7 @@
 import { Link, usePage } from '@inertiajs/vue3';
 import { ChevronRight, X } from 'lucide-vue-next';
 import { onMounted, onUnmounted, watch } from 'vue';
+import CreateMenu from '@/components/layout/CreateMenu.vue';
 import Sidebar from '@/components/layout/Sidebar.vue';
 import Topbar from '@/components/layout/Topbar.vue';
 import CommandPalette from '@/components/overlay/CommandPalette.vue';
@@ -17,6 +18,7 @@ withDefaults(
 );
 
 const page = usePage();
+const year = new Date().getFullYear();
 const theme = useThemeStore();
 const toasts = useToastStore();
 const ui = useUiStore();
@@ -106,34 +108,40 @@ watch(
                     v-if="title || breadcrumbs.length || $slots.actions"
                     class="border-b border-border bg-surface px-4 py-4 sm:px-6"
                 >
-                    <nav
-                        v-if="breadcrumbs.length"
-                        class="mb-1 flex items-center gap-1 text-small text-muted"
-                        aria-label="Breadcrumb"
-                    >
-                        <template v-for="(crumb, i) in breadcrumbs" :key="i">
-                            <ChevronRight
-                                v-if="i > 0"
-                                class="size-3.5 shrink-0"
-                                aria-hidden="true"
-                            />
-                            <Link
-                                v-if="crumb.href"
-                                :href="crumb.href"
-                                class="transition-colors hover:text-strong"
-                            >
-                                {{ crumb.label }}
-                            </Link>
-                            <span v-else class="text-strong">{{
-                                crumb.label
-                            }}</span>
-                        </template>
-                    </nav>
+                    <div class="flex items-center justify-between gap-3">
+                        <nav
+                            v-if="breadcrumbs.length"
+                            class="flex min-w-0 items-center gap-1 text-small text-muted"
+                            aria-label="Breadcrumb"
+                        >
+                            <template v-for="(crumb, i) in breadcrumbs" :key="i">
+                                <ChevronRight
+                                    v-if="i > 0"
+                                    class="size-3.5 shrink-0"
+                                    aria-hidden="true"
+                                />
+                                <Link
+                                    v-if="crumb.href"
+                                    :href="crumb.href"
+                                    class="transition-colors hover:text-strong"
+                                >
+                                    {{ crumb.label }}
+                                </Link>
+                                <span v-else class="truncate text-strong">{{
+                                    crumb.label
+                                }}</span>
+                            </template>
+                        </nav>
+                        <CreateMenu class="ml-auto shrink-0" />
+                    </div>
 
                     <div
-                        class="flex flex-wrap items-center justify-between gap-3"
+                        class="mt-1 flex flex-wrap items-center justify-between gap-3"
                     >
-                        <h1 v-if="title" class="text-h2 text-strong">
+                        <h1
+                            v-if="title"
+                            class="text-[1.25rem] leading-tight font-semibold tracking-tight text-strong"
+                        >
                             {{ title }}
                         </h1>
                         <div class="flex items-center gap-2">
@@ -146,6 +154,12 @@ watch(
                     <slot />
                 </div>
             </main>
+
+            <footer class="flex shrink-0 items-center border-t border-border bg-surface px-4 py-2 sm:px-6">
+                <p class="text-[0.78rem] text-muted">
+                    &copy; {{ year }} Berg Media Digital. All rights reserved.
+                </p>
+            </footer>
         </div>
 
         <CommandPalette />

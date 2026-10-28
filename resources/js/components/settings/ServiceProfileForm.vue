@@ -175,17 +175,7 @@ function remove(): void {
             <legend class="text-[0.88rem] font-medium text-strong">
                 Services
             </legend>
-            <p class="mt-0.5 text-[0.8rem] text-muted">
-                Keywords decide which tenders and jobs match. Use the words
-                clients write, e.g. “website”, “mobile app”, “ERP”.
-            </p>
-            <p
-                v-if="form.errors.services"
-                class="mt-1 text-[0.82rem] text-danger"
-            >
-                {{ form.errors.services }}
-            </p>
-            <div class="mt-3 space-y-2">
+            <div class="mt-1.5 space-y-2">
                 <div
                     v-for="(service, i) in form.services"
                     :key="i"
@@ -241,6 +231,17 @@ function remove(): void {
                 <Plus class="size-4" />
                 Add a service
             </Button>
+            <p class="mt-1.5 text-[0.82rem] leading-snug text-muted">
+                Keywords decide which tenders and jobs match. Use the words
+                clients write, e.g. “website”, “mobile app”, “ERP”.
+            </p>
+            <p
+                v-if="form.errors.services"
+                role="alert"
+                class="mt-1.5 text-[0.85rem] leading-snug text-danger"
+            >
+                {{ form.errors.services }}
+            </p>
         </fieldset>
 
         <FormField
@@ -342,9 +343,15 @@ function remove(): void {
                 :loading="form.processing"
                 >Save and re-score</Button
             >
-            <Button variant="ghost" size="lg" @click="remove"
-                >Remove profile</Button
+            <Button
+                type="button"
+                variant="danger"
+                size="icon"
+                :aria-label="`Remove ${profile.name}`"
+                @click="remove"
             >
+                <Trash2 class="size-4" />
+            </Button>
         </div>
     </form>
 </template>

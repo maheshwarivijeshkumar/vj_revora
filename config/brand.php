@@ -103,8 +103,8 @@ return [
             'name' => 'Revora',
             'tagline' => 'Grow Faster. Generate More Revenue.',
             'concept' => 'Rising revenue bars with a trend arrow clearing the tops.',
-            'primary' => '#059669',
-            'secondary' => '#10B981',
+            'primary' => '#0F9F94',
+            'secondary' => '#14B8A6',
             'accent' => '#2563EB',
         ],
 

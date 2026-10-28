@@ -12,6 +12,8 @@ use Carbon\CarbonImmutable;
 final readonly class TenderNotice
 {
     public function __construct(
+        public string $source,
+        public string $country,
         public string $reference,
         public string $title,
         public string $url,

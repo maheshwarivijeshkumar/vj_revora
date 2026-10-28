@@ -36,7 +36,7 @@ final class LeadDetailController extends Controller
 
     public function show(Lead $lead): Response
     {
-        $lead->load(['owner', 'source', 'tags', 'mergedInto']);
+        $lead->load(['owner', 'source', 'tags', 'mergedInto', 'client']);
 
         return Inertia::render('crm/leads/Show', [
             'lead' => $this->overview($lead),
@@ -101,6 +101,8 @@ final class LeadDetailController extends Controller
             'job_title' => $lead->job_title,
             'website' => $lead->website,
             'country' => $lead->country,
+            'location' => $this->locationLine($lead),
+            'category' => is_string($lead->metadata['category_label'] ?? null) ? $lead->metadata['category_label'] : null,
             'status' => $lead->status->value,
             'status_label' => $lead->status->label(),
             'status_tone' => $lead->status->tone(),
@@ -119,6 +121,10 @@ final class LeadDetailController extends Controller
             'last_activity_at' => $lead->last_activity_at?->toIso8601String(),
             'qualified_at' => $lead->qualified_at?->toIso8601String(),
             'created_at' => $lead->created_at?->toIso8601String(),
+            'client' => $lead->client === null ? null : [
+                'id' => $lead->client->id,
+                'name' => $lead->client->name,
+            ],
             // A merged lead is a tombstone: showing it as an ordinary record
             // would have someone working a person who lives under another id.
             'merged_into' => $lead->mergedInto === null ? null : [
@@ -126,6 +132,25 @@ final class LeadDetailController extends Controller
                 'name' => $lead->mergedInto->displayName(),
             ],
         ];
+    }
+
+    /**
+     * City, state and country kept with a discovered business.
+     */
+    private function locationLine(Lead $lead): ?string
+    {
+        $metadata = is_array($lead->metadata) ? $lead->metadata : [];
+        $parts = array_filter([
+            is_string($metadata['city'] ?? null) ? $metadata['city'] : null,
+            is_string($metadata['state'] ?? null) ? $metadata['state'] : null,
+            is_string($metadata['country_name'] ?? null) ? $metadata['country_name'] : null,
+        ], fn (?string $part): bool => $part !== null && $part !== '');
+
+        if ($parts === []) {
+            return null;
+        }
+
+        return implode(', ', $parts);
     }
 
     /**

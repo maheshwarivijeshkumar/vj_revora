@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useClock } from '@/composables/useClock';
 import { Head, router } from '@inertiajs/vue3';
 import {
     Facebook,
@@ -10,11 +11,14 @@ import {
     TriangleAlert,
 } from 'lucide-vue-next';
 import { computed } from 'vue';
+import IntegrationKeyForm from '@/components/settings/IntegrationKeyForm.vue';
+import WhatsAppSettings from '@/components/settings/WhatsAppSettings.vue';
 import Button from '@/components/ui/Button.vue';
 import StatusBadge, { type Tone } from '@/components/ui/StatusBadge.vue';
 import { useAuthorization } from '@/composables/useAuthorization';
 import AppLayout from '@/layouts/AppLayout.vue';
 
+const { timeZone } = useClock();
 type Run = {
     id: number;
     trigger: string;
@@ -58,6 +62,41 @@ const props = defineProps<{
     connections: Connection[];
     recentRuns: Run[];
     lookbackDays: number;
+    credentials: {
+        provider: string;
+        label: string;
+        enabled: boolean;
+        client_id: string;
+        client_id_label: string | null;
+        client_id_required: boolean;
+        secret_label: string | null;
+        secret_required: boolean;
+        secret_set: boolean;
+        api_key_label: string | null;
+        api_key_required: boolean;
+        api_key_set: boolean;
+        callback_url: string | null;
+        hint: string;
+    }[];
+    whatsapp: {
+        account: {
+            phone_number_id: string;
+            business_account_id: string | null;
+            display_phone_number: string | null;
+            welcome_template: string | null;
+            template_language: string;
+            auto_send_welcome: boolean;
+            status: string;
+            status_label: string;
+            status_tone: Tone;
+            last_error: string | null;
+        } | null;
+        webhook: {
+            url: string;
+            verify_token_set: boolean;
+            app_secret_set: boolean;
+        };
+    };
 }>();
 
 const { can } = useAuthorization();
@@ -72,7 +111,15 @@ const connectionsByPlatform = computed(() => {
     return grouped;
 });
 
-/** A full navigation: the provider's sign-in page is not an Inertia page. */
+function credentialFor(provider: string) {
+    return props.credentials.find((item) => item.provider === provider);
+}
+
+const otherCredentials = computed(() =>
+    props.credentials.filter(
+        (item) => !props.platforms.some((platform) => platform.key === item.provider),
+    ),
+);
 function connect(platform: Platform): void {
     window.location.href = platform.connect_url;
 }
@@ -132,7 +179,7 @@ function formatDate(value: string | null): string {
         return 'Never';
     }
 
-    return new Date(value).toLocaleString(undefined, {
+    return new Date(value).toLocaleString(undefined, { timeZone: timeZone.value,
         day: 'numeric',
         month: 'short',
         hour: '2-digit',
@@ -150,11 +197,10 @@ function formatDate(value: string | null): string {
     >
         <div class="space-y-4">
             <p class="max-w-3xl text-[0.9rem] text-muted">
-                Connect your lead-ad accounts and new form submissions arrive on
-                the Leads page every hour, already deduplicated, scored and
-                assigned. The first sync imports the last
-                {{ lookbackDays }} days. Only leads from your own ad forms are
-                imported, through each network's official API.
+                Choose Enabled on a network and enter its required keys. Save
+                stays off until those keys are filled. WhatsApp, Google,
+                Microsoft and Upwork are on this same page. The first lead-ad
+                sync imports the last {{ lookbackDays }} days.
             </p>
 
             <section
@@ -212,21 +258,18 @@ function formatDate(value: string | null): string {
                     </Button>
                 </div>
 
-                <div
-                    v-if="!platform.configured"
-                    class="mt-4 rounded-lg border border-dashed border-border px-4 py-3 text-[0.85rem] text-muted"
+                <IntegrationKeyForm
+                    v-if="credentialFor(platform.key) && can('integration.connect')"
+                    :credential="credentialFor(platform.key)!"
+                    :can-save="can('integration.connect')"
+                />
+                <p
+                    v-else-if="!platform.configured"
+                    class="mt-4 text-[0.85rem] text-muted"
                 >
-                    <p class="font-medium text-strong">Not set up yet</p>
-                    <p class="mt-1">
-                        Add this network's app ID and secret to the server
-                        environment, and register this redirect URL in the app's
-                        settings:
-                    </p>
-                    <code
-                        class="mt-2 block truncate rounded bg-surface-alt px-2 py-1 font-mono text-[0.8rem] text-strong"
-                        >{{ platform.callback_url }}</code
-                    >
-                </div>
+                    An administrator needs to save this network's app ID and
+                    secret before anyone can connect.
+                </p>
 
                 <ul
                     v-if="connectionsByPlatform[platform.key]?.length"
@@ -325,6 +368,30 @@ function formatDate(value: string | null): string {
                         </p>
                     </li>
                 </ul>
+            </section>
+
+            <section
+                v-for="credential in otherCredentials"
+                :key="credential.provider"
+                class="rounded-xl border border-border bg-surface p-5"
+            >
+                <h2 class="text-[0.98rem] font-semibold text-strong">
+                    {{ credential.label }}
+                </h2>
+                <IntegrationKeyForm
+                    v-if="can('integration.connect')"
+                    :credential="credential"
+                    :can-save="true"
+                />
+                <div
+                    v-if="credential.provider === 'whatsapp' && credential.enabled"
+                    class="mt-5 border-t border-border pt-5"
+                >
+                    <WhatsAppSettings
+                        :account="whatsapp.account"
+                        :webhook="whatsapp.webhook"
+                    />
+                </div>
             </section>
 
             <!-- Sync log -->

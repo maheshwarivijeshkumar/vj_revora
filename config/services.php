@@ -54,6 +54,9 @@ return [
     'google' => [
         'client_id' => env('GOOGLE_CLIENT_ID'),
         'client_secret' => env('GOOGLE_CLIENT_SECRET'),
+        // Find businesses → Google Maps. A Places API (New) key, separate
+        // from the Gmail sign-in client above.
+        'places_key' => env('GOOGLE_PLACES_API_KEY'),
     ],
 
     'microsoft' => [

@@ -100,6 +100,15 @@ it('validates on the server, not in the browser', function (): void {
     $this->post('/login', [])->assertSessionHasErrors(['email', 'password']);
 });
 
+it('accepts a sign-in address with an underscore in the domain', function (): void {
+    $this->post('/login', [
+        'email' => 'administrator@revora_berg.com',
+        'password' => 'not-the-password',
+    ])->assertSessionHasErrors('email');
+
+    expect(session('errors')->get('email'))->toBe(['These credentials do not match our records.']);
+});
+
 it('refuses an ambiguous address shared by two workspaces', function (): void {
     // users.email is unique per tenant, so the same address can exist twice.
     // With no tenant identified by the request, guessing a workspace would be
